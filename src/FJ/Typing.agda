@@ -20,6 +20,7 @@ open import FJ.Subtyping (CT)
 
 data _⊢*_⦂_ (Γ : VarContext) : List Exp → List Type → Set
 data _⊢_⦂_ (Γ : VarContext) : Exp → Type → Set where
+
   T-Var : ∀ {x}{T}
     → declOf x Γ ≡ just (x ⦂ T)
     → Γ ⊢ Var x ⦂ T
@@ -69,11 +70,13 @@ data _⊢*_⦂_ Γ where
 data _OK-IN_ : MethDecl → Class → Set where
 
   T-Method : ∀ {m xs C₀ e₀ E₀ C cn D}
-    → (xs ++ (∅ ▷ ("this" ⦂ Ty C))) ⊢ e₀ ⦂ E₀
+    → (xs ▷ ("this" ⦂ Ty C)) ⊢ e₀ ⦂ E₀
     → E₀ <:ᵀ C₀
     → C ≡ Extend cn D
     → (∀ {ds D₀} → mtype m D ≡ just (ds , D₀) → (bound xs ≡ bound ds) × (C₀ ≡ D₀))
     → record { name = m ; args = xs ; ty = C₀ ; body = e₀ } OK-IN C
+
+-- class typing
 
 data _OK : ClassDecl → Set where
 
