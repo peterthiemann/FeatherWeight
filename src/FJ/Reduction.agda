@@ -80,6 +80,10 @@ data _⟶_ : Exp → Exp → Set where
     → es ⟶′ es′
     → New C es ⟶ New C es′
 
+  RC-Cast : ∀ {D e e′}
+    → e ⟶ e′
+    → Cast D e ⟶ Cast D e′
+
 data _⟶′_ where
 
   RC-here : ∀ {e e′ es}

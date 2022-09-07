@@ -29,10 +29,10 @@ dom ∅ = []
 dom {get = get} (Γ ▷ x) = get x ∷ dom Γ 
 
 
-declOf : ∀ {A name} → Name → Context A name → Maybe A
+declOf : ∀ {A name} → (nm : Name) → Context A name → Maybe (Σ A (λ a → nm ≡ name a))
 declOf nm ∅ = nothing
 declOf {name = name} nm (Γ ▷ decl) with nm ≟ name decl
-... | yes name≡ = just decl
+... | yes name≡ = just (decl , name≡)
 ... | no  name≢ = declOf nm Γ
 
 _++_ : ∀ {A get} → Context A get → Context A get → Context A get
@@ -108,7 +108,7 @@ ancestor cc Object n = Object
 ancestor cc T@(Class cn) zero = T
 ancestor cc T@(Class cn) (suc n) with declOf cn cc
 ... | nothing = T
-... | just (class name extends exts field* flds method* mths) = ancestor cc exts n
+... | just (class name extends exts field* flds method* mths , refl) = ancestor cc exts n
 
 record ClassTable : Set where
   field

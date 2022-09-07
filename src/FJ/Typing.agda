@@ -22,12 +22,12 @@ data _⊢*_⦂_ (Γ : VarContext) : List Exp → List Type → Set
 data _⊢_⦂_ (Γ : VarContext) : Exp → Type → Set where
 
   T-Var : ∀ {x}{T}
-    → declOf x Γ ≡ just (x ⦂ T)
+    → declOf x Γ ≡ just (x ⦂ T , refl)
     → Γ ⊢ Var x ⦂ T
 
   T-Field : ∀ {e₀}{C₀}{f}{T}
     → Γ ⊢ e₀ ⦂ C₀
-    → declOf f (fields C₀) ≡ just (f ⦂ T)
+    → declOf f (fields C₀) ≡ just (f ⦂ T , refl)
     → Γ ⊢ Field e₀ f ⦂ T
 
   T-Invk : ∀ {e₀}{C₀}{m}{es}{margs}{T}{Ts}
@@ -43,18 +43,18 @@ data _⊢_⦂_ (Γ : VarContext) : Exp → Type → Set where
     → Ts <:* bound flds                      -- backwards?
     → Γ ⊢ New C es ⦂ C
 
-  T-UCast : ∀ {C D e₀}
+  T-UCast : ∀ {C}{D}{e₀}
     → Γ ⊢ e₀ ⦂ D
     → D <: C
     → Γ ⊢ Cast C e₀ ⦂ C
 
-  T-DCast : ∀ {C D e₀}
+  T-DCast : ∀ {C}{D}{e₀}
     → Γ ⊢ e₀ ⦂ D
     → C <: D
     → C ≢ D
     → Γ ⊢ Cast C e₀ ⦂ C
 
-  T-SCast : ∀ {C D e₀}
+  T-SCast : ∀ {C}{D}{e₀}
     → Γ ⊢ e₀ ⦂ D
     → ¬ (C <: D)
     → ¬ (D <: C)

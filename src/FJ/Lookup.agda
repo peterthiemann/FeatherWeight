@@ -20,7 +20,7 @@ fields′ n Object = ∅
 fields′ zero (Class cn) = ∅
 fields′ (suc n) (Class cn) with declOf cn (dcls CT)
 ... | nothing = ∅
-... | just (class name extends exts field* flds method* mths) = fields′ n exts ++ flds
+... | just (class name extends exts field* flds method* mths , refl) = fields′ n exts ++ flds
 
 fields : Type → Fields
 fields T = let n = height CT T in fields′ n T
@@ -30,9 +30,9 @@ mtype′ zero m T = nothing
 mtype′ (suc n) m Object = nothing
 mtype′ (suc n) m (Class cn) with declOf cn (dcls CT)
 ... | nothing = nothing
-... | just (class name extends exts field* flds method* mths) with declOf m mths
+... | just (class name extends exts field* flds method* mths , refl) with declOf m mths
 ... | nothing = mtype′ n m exts
-... | just (method _ ⦂ args ⇒ ty return body) = just (args , ty)
+... | just (method _ ⦂ args ⇒ ty return body , refl) = just (args , ty)
 
 mtype : MethName → Type → Maybe MethType
 mtype m T = let n = height CT T in mtype′ n m T
@@ -43,9 +43,9 @@ mbody′ zero m T = nothing
 mbody′ (suc n) m Object = nothing
 mbody′ (suc n) m (Class cn) with declOf cn (dcls CT)
 ... | nothing = nothing
-... | just (class name extends exts field* flds method* mths) with declOf m mths
+... | just (class name extends exts field* flds method* mths , refl) with declOf m mths
 ... | nothing = mbody′ n m exts
-... | just  (method _ ⦂ args ⇒ ty return body) = just (dom args , body)
+... | just  (method _ ⦂ args ⇒ ty return body , refl) = just (dom args , body)
 
 mbody : MethName → Type → Maybe MethBody
 mbody m T = let n = height CT T in mbody′ n m T
