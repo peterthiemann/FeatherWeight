@@ -26,12 +26,12 @@ data _⊢_⦂_ (Γ : VarContext) : Exp → Type → Set where
     → Γ ⊢ Var x ⦂ T
 
   T-Field : ∀ {e₀}{C₀}{f}{T}
-    → Γ ⊢ e₀ ⦂ Ty C₀
+    → Γ ⊢ e₀ ⦂ C₀
     → declOf f (fields C₀) ≡ just (f ⦂ T)
     → Γ ⊢ Field e₀ f ⦂ T
 
   T-Invk : ∀ {e₀}{C₀}{m}{es}{margs}{T}{Ts}
-    → Γ ⊢ e₀ ⦂ Ty C₀
+    → Γ ⊢ e₀ ⦂ C₀
     → mtype m C₀ ≡ just (margs , T)
     → Γ ⊢* es ⦂ Ts
     → Ts <:* bound margs                      -- backwards?
@@ -41,24 +41,24 @@ data _⊢_⦂_ (Γ : VarContext) : Exp → Type → Set where
     → fields C ≡ flds
     → Γ ⊢* es ⦂ Ts
     → Ts <:* bound flds                      -- backwards?
-    → Γ ⊢ New C es ⦂ Ty C
+    → Γ ⊢ New C es ⦂ C
 
   T-UCast : ∀ {C D e₀}
-    → Γ ⊢ e₀ ⦂ Ty D
+    → Γ ⊢ e₀ ⦂ D
     → D <: C
-    → Γ ⊢ Cast C e₀ ⦂ Ty C
+    → Γ ⊢ Cast C e₀ ⦂ C
 
   T-DCast : ∀ {C D e₀}
-    → Γ ⊢ e₀ ⦂ Ty D
+    → Γ ⊢ e₀ ⦂ D
     → C <: D
     → C ≢ D
-    → Γ ⊢ Cast C e₀ ⦂ Ty C
+    → Γ ⊢ Cast C e₀ ⦂ C
 
   T-SCast : ∀ {C D e₀}
-    → Γ ⊢ e₀ ⦂ Ty D
+    → Γ ⊢ e₀ ⦂ D
     → ¬ (C <: D)
     → ¬ (D <: C)
-    → Γ ⊢ Cast C e₀ ⦂ Ty C
+    → Γ ⊢ Cast C e₀ ⦂ C
 
 -- beat strict positivity
 data _⊢*_⦂_ Γ where
@@ -67,20 +67,20 @@ data _⊢*_⦂_ Γ where
 
 -- method typing
 
-data _OK-IN_ : MethDecl → Class → Set where
+data _OK-IN_ : MethDecl → Type → Set where
 
   T-Method : ∀ {m xs C₀ e₀ E₀ C cn D}
-    → (xs ▷ ("this" ⦂ Ty C)) ⊢ e₀ ⦂ E₀
-    → E₀ <:ᵀ C₀
-    → C ≡ Extend cn D
+    → (xs ▷ ("this" ⦂ C)) ⊢ e₀ ⦂ E₀
+    → E₀ <: C₀
+    → C ≡ Class cn
     → (∀ {ds D₀} → mtype m D ≡ just (ds , D₀) → (bound xs ≡ bound ds) × (C₀ ≡ D₀))
-    → record { name = m ; args = xs ; ty = C₀ ; body = e₀ } OK-IN C
+    → (method m ⦂ xs ⇒ C₀ return e₀) OK-IN C
 
 -- class typing
 
 data _OK : ClassDecl → Set where
 
   T-Class : ∀ {C cn}{D}{fdecl}{mdecl}
-    → C ≡ Extend cn D
+    → C ≡ Class cn
     → All (_OK-IN C) (toList mdecl)
-    → (class cn fls fdecl mts mdecl) OK
+    → (class cn extends D field* fdecl method* mdecl) OK
