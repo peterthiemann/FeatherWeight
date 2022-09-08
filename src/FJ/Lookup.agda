@@ -16,14 +16,15 @@ module FJ.Lookup (CT : ClassTable) where
 open ClassTable
 
 fields′ : ℕ → Type → Fields
+
 fields′ n Object = ∅
 fields′ zero (Class cn) = ∅
 fields′ (suc n) (Class cn) with declOf cn (dcls CT)
 ... | nothing = ∅
 ... | just (class name extends exts field* flds method* mths , refl) = fields′ n exts ++ flds
 
-fields : Type → Fields
-fields T = let n = height CT T in fields′ n T
+fields : {T : Type} → wf₀ CT T → Fields
+fields {T} wft = let n = height CT T wft in fields′ n T
 
 mtype′ : ℕ → MethName → Type → Maybe MethType
 mtype′ zero m T = nothing
@@ -34,8 +35,8 @@ mtype′ (suc n) m (Class cn) with declOf cn (dcls CT)
 ... | nothing = mtype′ n m exts
 ... | just (method _ ⦂ args ⇒ ty return body , refl) = just (args , ty)
 
-mtype : MethName → Type → Maybe MethType
-mtype m T = let n = height CT T in mtype′ n m T
+mtype : MethName → {T : Type} → wf₀ CT T → Maybe MethType
+mtype m {T} wft = let n = height CT T wft in mtype′ n m T
 
 
 mbody′ : ℕ → MethName → Type → Maybe MethBody
@@ -47,5 +48,5 @@ mbody′ (suc n) m (Class cn) with declOf cn (dcls CT)
 ... | nothing = mbody′ n m exts
 ... | just  (method _ ⦂ args ⇒ ty return body , refl) = just (dom args , body)
 
-mbody : MethName → Type → Maybe MethBody
-mbody m T = let n = height CT T in mbody′ n m T
+mbody : MethName → {T : Type} → wf₀ CT T → Maybe MethBody
+mbody m {T} wft = let n = height CT T wft in mbody′ n m T

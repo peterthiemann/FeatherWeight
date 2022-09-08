@@ -1,3 +1,4 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 open import FJ.Syntax
 
 module FJ.Reduction (CT : ClassTable) where
@@ -15,9 +16,6 @@ open import Relation.Binary.PropositionalEquality
 
 open import FJ.Subtyping (CT)
 open import FJ.Lookup (CT)
-
-retype : ∀ {ℓ}{A B : Set ℓ} → A → A ≡ B → B
-retype a refl = a
 
 -- substitution
 
@@ -47,14 +45,14 @@ data _⟶_ : Exp → Exp → Set where
   -- computation
 
   R-Field : ∀ {C es f}
-    → let fs = dom (fields C)
+    → let fs = dom (fields {C} {!!})
     in (len≡ : length fs ≡ length es)
     → {i : Fin (length fs)}
     → lookup fs i ≡ f
     → Field (New C es) f ⟶ lookup es (retype i (cong Fin len≡))
 
   R-Invk : ∀ {C es m ds xs e₀}
-    → mbody m C ≡ just (xs , e₀)
+    → mbody m {C} {!!} ≡ just (xs , e₀)
     → (len≡ : length xs ≡ length ds)
     → (Meth (New C es) m ds) ⟶ ((e₀ [ "this" ↦ New C es ]) [ xs ⇒ ds ] len≡)
 
