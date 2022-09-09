@@ -53,7 +53,7 @@ s-trans* (S-S T<:T′ Ts<:*Ts′) (S-S T′<:T″ Ts′<:*Ts″) = S-S (S-Trans 
 ¬object<:class : ∀ {cn} → ¬ Object <: Class cn
 ¬object<:class (S-Extends () dcls∋ o<:cn)
 
-class<:object : ∀ {cn} → (∃[ n ] ancestor (dcls CT) (Class cn) n ≡ Object) → Class cn <: Object
+class<:object : ∀ {cn} → Rooted (dcls CT) (Class cn) → Class cn <: Object
 class<:object {cn} (n , anc-n≡object) = proof-of-cn<:object (Class cn) n anc-n≡object
   where
     proof-of-cn<:object : (T : Type) → ∀ n → ancestor (dcls CT) T n ≡ Object → T <: Object
@@ -71,7 +71,7 @@ pair-injective₁ refl = refl
 class-exts-injective : {cd₁ cd₂ : ClassDecl} → cd₁ ≡ cd₂ → ClassDecl.exts cd₁ ≡ ClassDecl.exts cd₂
 class-exts-injective refl = refl
 
-class<:class : ∀ {T}{cn₂} → (ws : wf₀ CT T) → (∃[ n ] ancestor (dcls CT) T n ≡ Object) → Dec (T <: Class cn₂)
+class<:class : ∀ {T}{cn₂} → (ws : wf₀ CT T) → Rooted (dcls CT) T → Dec (T <: Class cn₂)
 class<:class{T}{cn₂} ws (n , anc-n≡object) = proof-of-cn<:cn T n anc-n≡object
   where
     proof-of-cn<:cn : (T : Type) → ∀ n → ancestor (dcls CT) T n ≡ Object → Dec (T <: Class cn₂)
