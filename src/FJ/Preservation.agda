@@ -176,7 +176,7 @@ subject-reduction {Γ} wf-ctx wfe-e
     extract (.(f ⦂ T) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (here x₂) (here x₃) = _ , C<:T , ⊢e
     extract (.(f ⦂ T) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (here x₂) (there fe∈ f≢f) = ⊥-elim (f≢f refl)
     extract (bnd ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x≢x) (here x₄) = ⊥-elim (x≢x refl)
-    extract ((f′ ⦂ T′) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x₃) (there fe∈ x₄) = extract fff es Ts<:* ⊢*es ft∈ fe∈ 
+    extract ((f′ ⦂ T′) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x₃) (there fe∈ x₄) = extract fff es Ts<:* ⊢*es ft∈ fe∈
 subject-reduction wf-ctx wfe-e (T-Invk (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) mtype≡ ⊢*ds Ds<:*) (R-Invk mbody≡) = {!!}
 subject-reduction wf-ctx wfe-e
                   (T-UCast (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) C<:D₁)
@@ -192,10 +192,7 @@ subject-reduction wf-ctx wfe-e
                   (RC-Field e⟶e′)
   with subject-reduction wf-ctx wfe-e ⊢e e⟶e′
 ... | T′ , T′<:C₀ , ⊢e′
-  with fields T′
-... | just x = {!!}
-... | nothing = {!!}
--- = T , S-Refl , T-Field{{!!}}{{!!}}{T′}{f}{{!!}}{T} ⊢e′ {!!} {!!}
+  = T , S-Refl , T-Field{{!!}}{_}{T′}{f}{{!!}}{T} ⊢e′ {!!} {!!}
 subject-reduction wf-ctx wfe-e
                   ⊢e
                   (RC-Invk-Recv e⟶e′) = {!!}

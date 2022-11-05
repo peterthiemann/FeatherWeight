@@ -6,6 +6,7 @@ open import Data.List using (List; []; _∷_; _++_)
 open import Data.List.Relation.Unary.All using (All; []; _∷_)
 open import Data.String using (String; _≟_)
 open import Data.Unit using (⊤; tt)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Function using (_∘_)
 open import Relation.Nullary
   using (¬_; Dec; yes; no)
@@ -87,15 +88,15 @@ mlookup-helper : (cn : ClassName) → MethName → (n : ℕ)
   → ancestor (dcls CT) (Class cn) (suc n) ≡ Object
   → Maybe (Σ MethDecl (λ md → wf-m (dcls CT) md))
 mlookup-helper cn mn n anc-n≢obj anc-n+1≡obj
-  with declOf{name = name} cn (dcls CT) in decl-cn-eq
-... | just ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl)
+  with declOf+{name = name} cn (dcls CT) in decl-cn-eq
+... | inj₁ ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl)
   with declOf{name = MethDecl.name} mn mths₁
 ... | just (md , md∈ , refl) = just (md , (is-wf-md{CT} md∈ wf-mths₁))
     where
       wf-mths₁ : wf-m* (dcls CT) mths₁
       wf-mths₁ = proj₂ (proj₂ (is-wf-cd{CT} cd∈))
-mlookup-helper cn mn zero anc-n≢obj anc-n+1≡obj | just ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl) | nothing = nothing
-mlookup-helper cn mn (suc n) anc-n≢obj anc-n+1≡obj | just ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl) | nothing
+mlookup-helper cn mn zero anc-n≢obj anc-n+1≡obj | inj₁ ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl) | nothing = nothing
+mlookup-helper cn mn (suc n) anc-n≢obj anc-n+1≡obj | inj₁ ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl) | nothing
   rewrite decl-cn-eq
   with ancestor1 {exts₁} n anc-n≢obj
 ... | cn-exts , refl = mlookup-helper cn-exts mn n anc-n≢obj anc-n+1≡obj

@@ -10,6 +10,7 @@ open import Data.Product using (_×_; Σ; proj₁; proj₂; _,_; ∃-syntax; ∃
 open import Data.String using (String; _≟_)
 open import Data.Unit using (⊤; tt)
 open import Data.Empty using (⊥; ⊥-elim)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 
 open import Function using (_∘_)
 
@@ -61,9 +62,13 @@ data _[_]∌_ {A : Set} : List A → (A → String) → String → Set where
   nowhere : ∀ {name}{cn} → [] [ name ]∌ cn
   nothere : ∀ {Γ : List A}{name}{cn}{a : A} → Γ [ name ]∌ cn → cn ≢ name a → (a ∷ Γ) [ name ]∌ cn
 
-data _[_]∋_ {A} : List A → (A → String) → A → Set where
-  here  : ∀ {Γ : List A} {name} {a : A}   → Γ [ name ]∌ name a → (a ∷ Γ) [ name ]∋ a
+data _[_]∋_ {A : Set} : List A → (A → String) → A → Set where
+  here  : ∀ {Γ : List A} {name} {a : A}   → ⊤ {- Γ [ name ]∌ name a -} → (a ∷ Γ) [ name ]∋ a
   there : ∀ {Γ : List A} {name} {a b : A} → Γ [ name ]∋ a → name a ≢ name b → (b ∷ Γ) [ name ]∋ a
+
+member-exclusive : ∀ {A : Set}{name : A → String} {xs : List A} {x : A} → xs [ name ]∋ x → xs [ name ]∌ name x → ⊥
+member-exclusive (here x) (nothere x∉ x≢x) = x≢x refl
+member-exclusive (there x∈ x) (nothere x∉ x₁) = member-exclusive x∈ x∉
 
 --   -- ≢-unique : ∀ {A : Set}{x y : A} → (p q : x ≢ y) → p ≡ q
 --   -- ≢-unique p q = {!p refl!}
@@ -246,35 +251,51 @@ declNo {name = name} cn (cd ∷ cc) with name cd ≟ cn
 ... | nothing = nothing
 ... | just cc∌ = just (nothere cc∌ (λ x → cn≢ (sym x)))
 
-module experiment where
-
+module experiment-obsolete where
 
   declOf : (cn : ClassName) (cc : ClassContext) → Maybe (∃[ cd ] cc [ name ]∋ cd × name cd ≡ cn)
   declOf cn [] = nothing
   declOf cn (cd ∷ cc) with name cd ≟ cn
-  declOf cn (cd ∷ cc) | yes refl with declNo cn cc
+  declOf cn (cd ∷ cc) | yes refl {- with declNo cn cc
   ... | nothing = nothing
-  ... | just cc∌ = just (cd , here cc∌ , refl)
+  ... | just cc∌ -} = just (cd , here tt {- cc∌ -} , refl)
   declOf cn (cd ∷ cc) | no cn≢ with declOf cn cc
   ... | nothing = nothing
   ... | just (cd , cc∋cd , refl) = just (cd , there cc∋cd (λ x → cn≢ (sym x)) , refl)
 
+module previous-version where
+
+  declOf : {A : Set}{name : A → Name} (cn : Name) (cc : List A) → Maybe (∃[ cd ] cc [ name ]∋ cd × name cd ≡ cn)
+  declOf cn [] = nothing
+  declOf {name = name} cn (cd ∷ cc) with name cd ≟ cn
+  ... | yes refl {- with declNo{name = name} cn cc
+  ... | nothing = nothing
+  ... | just cc∌ -} = just (cd , here tt {- cc∌ -} , refl)
+  declOf {name = name} cn (cd ∷ cc) | no name≢ with declOf {name = name} cn cc
+  ... | nothing = nothing
+  ... | just (cd , cc∋cd , refl) = just (cd , ((there cc∋cd (name≢ ∘ sym)) , refl))
+
+declOf+ : {A : Set}{name : A → Name} (cn : Name) (cc : List A) → (∃[ cd ] cc [ name ]∋ cd × name cd ≡ cn) ⊎ cc [ name ]∌ cn
+declOf+ cn [] = inj₂ nowhere
+declOf+ {name = name} cn (cd ∷ cc) with cn ≟ name cd
+... | yes refl = inj₁ (cd , here tt , refl)
+... | no name≢
+  with declOf+ {name = name} cn cc
+... | inj₁ (cd , cn∈ , refl) = inj₁ (cd , there cn∈ name≢ , refl)
+... | inj₂ cn∉ = inj₂ (nothere cn∉ name≢)
+
 declOf : {A : Set}{name : A → Name} (cn : Name) (cc : List A) → Maybe (∃[ cd ] cc [ name ]∋ cd × name cd ≡ cn)
-declOf cn [] = nothing
-declOf {name = name} cn (cd ∷ cc) with name cd ≟ cn
-... | yes refl with declNo{name = name} cn cc
-... | nothing = nothing
-... | just cc∌ = just (cd , here cc∌ , refl)
-declOf {name = name} cn (cd ∷ cc) | no name≢ with declOf {name = name} cn cc
-... | nothing = nothing
-... | just (cd , cc∋cd , refl) = just (cd , ((there cc∋cd (name≢ ∘ sym)) , refl))
+declOf {A}{name} cn cc with
+  declOf+ {A}{name} cn cc
+... | inj₁ x = just x
+... | inj₂ y = nothing
 
 ancestor : ClassContext → Type → ℕ → Type
 ancestor cc Object n = Object
 ancestor cc T@(Class cn) zero = T
-ancestor cc T@(Class cn) (suc n) with declOf {name = name} cn cc
-... | nothing = T
-... | just (cd , cc∋ , refl) = ancestor cc (exts cd) n
+ancestor cc T@(Class cn) (suc n) with declOf+ {name = ClassDecl.name} cn cc
+... | inj₂ _ = T
+... | inj₁ (cd , cc∋ , refl) = ancestor cc (exts cd) n
 
 ancestor0 : ∀ {T}{cc} → (T₁ : Type) → ancestor cc T₁ 0 ≡ T → T₁ ≡ T
 ancestor0 Object refl = refl

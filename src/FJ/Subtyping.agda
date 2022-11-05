@@ -28,7 +28,7 @@ data _<:_ : Type → Type → Set where
   --   → C <: D
   --   → D <: E
   --   → C <: E
-  S-Extends : ∀ {C cn D flds mths E}
+  S-Extends : ∀ {C}{cn}{D}{flds}{mths}{E}
     → C ≡ Class cn
     -- → declOf cn (dcls CT) ≡ just (class cn extends D field* flds method* mths , {!!} , refl)
     → dcls CT [ ClassDecl.name ]∋ (class cn extends D field* flds method* mths)
@@ -73,11 +73,11 @@ class<:object {cn} (n , anc-n≢object , anc-n+1≡object) = proof-of-cn<:object
     proof-of-cn<:object : ∀ {cn} → ∀ n
       → ancestor (dcls CT) (Class cn) n ≢ Object → ancestor (dcls CT) (Class cn) (suc n) ≡ Object
       → Class cn <: Object
-    proof-of-cn<:object {cn} zero anc-n≢object anc-n+1≡object with declOf{name = ClassDecl.name} cn (dcls CT)
-    ... | just ((class name extends exts field* flds method* mths) , cd∈ , refl)
+    proof-of-cn<:object {cn} zero anc-n≢object anc-n+1≡object with declOf+{name = ClassDecl.name} cn (dcls CT)
+    ... | inj₁ ((class name extends exts field* flds method* mths) , cd∈ , refl)
       rewrite sym (ancestor0 exts anc-n+1≡object) = S-Extends refl cd∈ S-Refl
-    proof-of-cn<:object {cn} (suc n) anc-n≢object anc-n+1≡object with declOf{name = ClassDecl.name} cn (dcls CT)
-    ... | just ((class name extends exts field* flds method* mths) , cd∈ , refl)
+    proof-of-cn<:object {cn} (suc n) anc-n≢object anc-n+1≡object with declOf+{name = ClassDecl.name} cn (dcls CT)
+    ... | inj₁ ((class name extends exts field* flds method* mths) , cd∈ , refl)
       with ancestor1 {exts} n anc-n≢object
     ... | cn-ext , refl
       with proof-of-cn<:object n anc-n≢object anc-n+1≡object
@@ -96,8 +96,8 @@ class<:class {cn}{cn₂} (n , anc-n≢object , anc-n+1≡object) = proof-of-cn<:
       with cn ≟ cn₂
     ... | yes refl = yes S-Refl
     proof-of-cn<:cn {cn} zero anc-n≢object anc-n+1≡object | no cn≢
-      with declOf{name = ClassDecl.name} cn (dcls CT)
-    ... | just ((class .cn extends exts field* flds method* mths) , cd∈ , refl)
+      with declOf+{name = ClassDecl.name} cn (dcls CT)
+    ... | inj₁ ((class .cn extends exts field* flds method* mths) , cd∈ , refl)
       with ancestor0 exts anc-n+1≡object
     ... | refl = no ¬cn<:cn₂
       where
@@ -106,8 +106,8 @@ class<:class {cn}{cn₂} (n , anc-n≢object , anc-n+1≡object) = proof-of-cn<:
         ¬cn<:cn₂ (S-Extends refl cd∈₂ obj<:cn₂) with cc∋-functional cd∈ cd∈₂
         ... | refl , refl , refl = ¬object<:class obj<:cn₂
     proof-of-cn<:cn {cn} (suc n) anc-n≢object anc-n+1≡object | no cn≢
-      with declOf{name = ClassDecl.name} cn (dcls CT)
-    ... | just ((class .cn extends exts field* flds method* mths) , cd∈ , refl)
+      with declOf+{name = ClassDecl.name} cn (dcls CT)
+    ... | inj₁ ((class .cn extends exts field* flds method* mths) , cd∈ , refl)
       with ancestor1 {exts} n anc-n≢object
     ... | cn₁ , refl
       with proof-of-cn<:cn {cn₁} n anc-n≢object anc-n+1≡object
@@ -160,24 +160,3 @@ lemma-cdd3 {Class cn} {D} {D′} (S-Extends refl cn∈₁ C<:D) (S-Extends refl 
 ¬C<:D⇒C≢D : ∀ {C}{D} → ¬ C <: D → C ≢ D
 ¬C<:D⇒C≢D ¬C<:D refl = ¬C<:D S-Refl
 
-{-
-module an-alternative where
-  fields-mon : ∀ {C}{D} → C <: D → ∀ fff-D → fields D ≡ just fff-D → ∃[ fff ] (fields C ≡ just (fff ++ fff-D))
-  fields-mon {C} {.C} S-Refl fff-D fields-D≡ = [] , fields-D≡
-  fields-mon {Class cn} {D} (S-Extends {D = C′} refl decls≡ C′<:D) fff-D fields-D≡
-    with fields-mon C′<:D fff-D fields-D≡
-  ... | fff , ih
-    with flookup (Class cn) | flookup C′ | flookup D
-  ... | just f0 | just fc | just fd = {!!}
-
-fields-mon : ∀ {C}{D} → C <: D → ∀ fff-C → fields C ≡ just fff-C → ∃[ fff-D ] (fields D ≡ just fff-D)
-fields-mon S-Refl fff-C field-C≡ = fff-C , field-C≡
-fields-mon {Class cn} {Object} (S-Extends refl cd∈ C<:D) fff-cn field-C≡ = [] , refl
-fields-mon {Class cn} {Class dn} (S-Extends {flds = flds}{mths = mths} refl cd∈ C<:D) fff-cn field-C≡
-  with flookup (Class cn) | flookup (Class dn)
-... | just x | just x₁ = {!!}
-... | just x | nothing = {!!}
-  -- where
-  --   fields-mon-1 : fields (Class dn) ≡ just fff-D → fields (Class cn) ≡ just (flds ++ fff-D)
-  --   fields-mon-1 
--}
