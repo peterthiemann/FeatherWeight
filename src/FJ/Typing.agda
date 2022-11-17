@@ -91,7 +91,7 @@ data _OK-IN_ : MethDecl → Type → Set where
 
 data _OK : ClassDecl → Set where
 
-  T-Class : ∀ {C cn}{D}{fdecl}{mdecl}
+  T-Class : ∀ {C}{cn}{D}{fdecl}{mdecl}
     → C ≡ Class cn
     → All (_OK-IN C) mdecl
     → (class cn extends D field* fdecl method* mdecl) OK
@@ -101,3 +101,5 @@ data _OK : ClassDecl → Set where
 PROGRAM_OK : ClassContext → Set
 PROGRAM_OK = All _OK
 
+CLASSTABLE_OK : ClassTable → Set
+CLASSTABLE CT OK = PROGRAM (dcls CT) OK

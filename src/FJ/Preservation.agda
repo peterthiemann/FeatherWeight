@@ -146,6 +146,7 @@ wf-derivation wft*-Γ wfe-e (T-SCast ⊢e ¬T<:D ¬D<:T) = proj₁ wfe-e
 ------------------------------------------------------------
 
 subject-reduction* : ∀ {Γ}{es es′}{Ts}
+  → CLASSTABLE CT OK
   → wf-t*₀ CT Γ
   → wf-e*₀ CT es
   → Γ ⊢* es ⦂ Ts
@@ -153,17 +154,18 @@ subject-reduction* : ∀ {Γ}{es es′}{Ts}
   → ∃[ Ts′ ] (Ts′ <:* Ts × Γ ⊢* es′ ⦂ Ts′)
 
 subject-reduction : ∀ {Γ}{e e′}{T}
+  → CLASSTABLE CT OK
   → wf-t*₀ CT Γ
   → wf-e₀ CT e
   → Γ ⊢ e ⦂ T
   → e ⟶ e′
   → ∃[ T′ ] (T′ <: T × Γ ⊢ e′ ⦂ T′)
 
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
                   (T-Field {e₀}{C₀}{f}{fenv}{T} (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) fields≡TF f∈)
                   (R-Field fields≡R f∈fields)
   with flookup C₀
-subject-reduction {Γ} wf-ctx wfe-e
+subject-reduction {Γ} CT-ok wf-ctx wfe-e
                   (T-Field {.(New C₀ _)} {C₀} {f} {fff} {T} (T-New {C₀} {es} {Ts} {.fff} refl ⊢*es Ts<:*) refl f∈)
                   (R-Field refl f∈fields) | just (fff , wft*-fff) = extract fff es Ts<:* ⊢*es f∈ f∈fields 
   where
@@ -177,44 +179,46 @@ subject-reduction {Γ} wf-ctx wfe-e
     extract (.(f ⦂ T) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (here x₂) (there fe∈ f≢f) = ⊥-elim (f≢f refl)
     extract (bnd ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x≢x) (here x₄) = ⊥-elim (x≢x refl)
     extract ((f′ ⦂ T′) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x₃) (there fe∈ x₄) = extract fff es Ts<:* ⊢*es ft∈ fe∈
-subject-reduction wf-ctx wfe-e (T-Invk (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) mtype≡ ⊢*ds Ds<:*) (R-Invk mbody≡) = {!!}
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
+                  (T-Invk  {e₀}{C₀}{m}{ds}{margs}{T}{Tds} (T-New {C} {es} {Tes} {flds} fields≡TN ⊢*es Ts<:*) mtype≡ ⊢*ds Ds<:*)
+                  (R-Invk mbody≡) = T , S-Refl , {!!}
+subject-reduction CT-ok wf-ctx wfe-e
                   (T-UCast (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) C<:D₁)
                   (R-Cast C<:D) = C , C<:D , (T-New fields≡TN ⊢*es Ts<:*)
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
                   (T-DCast (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) D<:C D≢C)
                   (R-Cast C<:D) = ⊥-elim (D≢C (<:-antisymm D<:C C<:D))
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
                   (T-SCast (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) ¬D<:C ¬C<:D)
                   (R-Cast C<:D) = ⊥-elim (¬C<:D C<:D)
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
                   (T-Field {e₀}{C₀}{f}{fenv}{T} ⊢e fields≡TF f∈)
                   (RC-Field e⟶e′)
-  with subject-reduction wf-ctx wfe-e ⊢e e⟶e′
+  with subject-reduction CT-ok wf-ctx wfe-e ⊢e e⟶e′
 ... | T′ , T′<:C₀ , ⊢e′
   = T , S-Refl , T-Field{{!!}}{_}{T′}{f}{{!!}}{T} ⊢e′ {!!} {!!}
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
                   ⊢e
                   (RC-Invk-Recv e⟶e′) = {!!}
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
                   (T-Invk ⊢e mtype≡ ⊢*es Ts<:*)
                   (RC-Invk-Arg es⟶es′)
-  with subject-reduction* wf-ctx (proj₂ wfe-e) ⊢*es es⟶es′
+  with subject-reduction* CT-ok wf-ctx (proj₂ wfe-e) ⊢*es es⟶es′
 ... | Ts′ , Ts′<:Ts , ⊢*es′ = _ , S-Refl , T-Invk ⊢e mtype≡ ⊢*es′ (s-trans* Ts′<:Ts Ts<:*)
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
                   (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*)
                   (RC-New-Arg es⟶es′)
-  with subject-reduction* wf-ctx (proj₂ wfe-e) ⊢*es es⟶es′
+  with subject-reduction* CT-ok wf-ctx (proj₂ wfe-e) ⊢*es es⟶es′
 ... | Ts′ , Ts′<:Ts , ⊢*es′ = _ , S-Refl , T-New fields≡TN ⊢*es′ (s-trans* Ts′<:Ts Ts<:*)
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
                   (T-UCast ⊢e D<:T)
                   (RC-Cast e⟶e′)
-  with subject-reduction wf-ctx (proj₂ wfe-e) ⊢e e⟶e′
+  with subject-reduction CT-ok wf-ctx (proj₂ wfe-e) ⊢e e⟶e′
 ... | T′ , T′<:D , ⊢e′ = _ , S-Refl , T-UCast ⊢e′ (S-Trans T′<:D D<:T)
-subject-reduction wf-ctx wfe-e
+subject-reduction CT-ok wf-ctx wfe-e
                   (T-DCast {C}{D}{e₀} ⊢e C<:D C≢D)
                   (RC-Cast e⟶e′)
-  with subject-reduction wf-ctx (proj₂ wfe-e) ⊢e e⟶e′
+  with subject-reduction CT-ok wf-ctx (proj₂ wfe-e) ⊢e e⟶e′
 ... | T′ , T′<:D , ⊢e′
   with wf-preservation (proj₂ wfe-e) e⟶e′
 ... | wfe-e′
@@ -227,12 +231,12 @@ subject-reduction wf-ctx wfe-e
 ... | no ¬C<:T′ = C , S-Refl , T-SCast ⊢e′ ¬C<:T′ ¬T′<:C
 ... | yes C<:T′ = C , S-Refl , T-DCast ⊢e′ C<:T′ (¬C<:D⇒C≢D ¬T′<:C ∘ sym)
 
-subject-reduction {T = T} wf-ctx wfe-e
+subject-reduction {T = T} CT-ok wf-ctx wfe-e
                   (T-SCast ⊢e ¬T<:D ¬D<:T)
                   (RC-Cast e⟶e′)
   with wf-derivation wf-ctx (proj₂ wfe-e) ⊢e
 ... | wft-D
-  with subject-reduction wf-ctx (proj₂ wfe-e) ⊢e e⟶e′
+  with subject-reduction CT-ok wf-ctx (proj₂ wfe-e) ⊢e e⟶e′
 ... | D′ , D′<:D , ⊢e′ = _ , S-Refl , T-SCast ⊢e′ (lemma-cdd1 ¬T<:D D′<:D) ¬D′<:T
   where
     ¬D′<:T : ¬ D′ <: T
@@ -241,11 +245,10 @@ subject-reduction {T = T} wf-ctx wfe-e
     ... | inj₁ T<:D = ¬T<:D T<:D
     ... | inj₂ D<:T = ¬D<:T D<:T
 
-subject-reduction* wf-ctx wfe*-es (_∷_ {ys = Ts} ⊢e  ⊢*es) (RC-here e⟶e′)
-  with subject-reduction wf-ctx (proj₁ wfe*-es) ⊢e e⟶e′
+subject-reduction* CT-ok wf-ctx wfe*-es (_∷_ {ys = Ts} ⊢e  ⊢*es) (RC-here e⟶e′)
+  with subject-reduction CT-ok wf-ctx (proj₁ wfe*-es) ⊢e e⟶e′
 ... | T′ , T′<:T , ⊢e′ = T′ ∷ Ts , S-S T′<:T s-refl* , ⊢e′ ∷ ⊢*es
 
-subject-reduction* wf-ctx wfe*-es (_∷_ {y = T} ⊢e ⊢*es) (RC-there es⟶es′)
-  with subject-reduction* wf-ctx (proj₂ wfe*-es) ⊢*es es⟶es′
+subject-reduction* CT-ok wf-ctx wfe*-es (_∷_ {y = T} ⊢e ⊢*es) (RC-there es⟶es′)
+  with subject-reduction* CT-ok wf-ctx (proj₂ wfe*-es) ⊢*es es⟶es′
 ... | Ts′ , Ts′<:Ts , ⊢*es′ = T ∷ Ts′ , S-S S-Refl Ts′<:Ts , ⊢e ∷ ⊢*es′
-
