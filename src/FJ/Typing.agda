@@ -80,7 +80,7 @@ _⊢*_⦂_ Γ = Pointwise (Γ ⊢_⦂_)
 
 data _OK-IN_ : MethDecl → Type → Set where
 
-  T-Method : ∀ {m xs C₀ e₀ E₀ C cn D}
+  T-Method : ∀ {m}{xs}{C₀}{e₀}{E₀}{C}{cn}{D}
     → (("this" ⦂ C) ∷ xs) ⊢ e₀ ⦂ E₀
     → E₀ <: C₀
     → C ≡ Class cn
