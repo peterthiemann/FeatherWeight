@@ -62,7 +62,7 @@ getFields (suc n) (Class cn) with declOf{name = name} cn (dcls CT)
 ... | nothing = [] , []
 ... | just (cd , cd∈ , cn≡)
   with getFields n (exts cd)
-... | ff , wft-ff = ff ++ flds cd , (wft-ff ++ᴬ proj₁ (proj₂ (is-wf-cd{CT} cd∈)) )
+... | ff , wft-ff = ff ++ flds cd , wft-ff ++ᴬ proj₁ (proj₂ (is-wf-cd{CT} cd∈))
 
 -- getFields : ℕ → Type → Fields
 -- getFields n Object = []
@@ -83,34 +83,70 @@ fields  : Type → Maybe Fields
 fields T = map proj₁ (flookup T)
 
 
+module obsolete-mlookup-helper where
+
+  mlookup-helper : (cn : ClassName) → MethName → (n : ℕ)
+    → ancestor (dcls CT) (Class cn) n ≢ Object
+    → ancestor (dcls CT) (Class cn) (suc n) ≡ Object
+    → Maybe (Σ MethDecl (λ md → wf-m (dcls CT) md))
+  mlookup-helper cn mn n anc-n≢obj anc-n+1≡obj
+    with declOf+{name = name} cn (dcls CT) in decl-cn-eq
+  ... | inj₁ ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl)
+    with declOf{name = MethDecl.name} mn mths₁
+  ... | just (md , md∈ , refl) = just (md , (is-wf-md{CT} md∈ wf-mths₁))
+      where
+        wf-mths₁ : wf-m* (dcls CT) mths₁
+        wf-mths₁ = proj₂ (proj₂ (is-wf-cd{CT} cd∈))
+  mlookup-helper cn mn zero anc-n≢obj anc-n+1≡obj | inj₁ ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl) | nothing = nothing
+  mlookup-helper cn mn (suc n) anc-n≢obj anc-n+1≡obj | inj₁ ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl) | nothing
+    rewrite decl-cn-eq
+    with ancestor1 {exts₁} n anc-n≢obj
+  ... | cn-exts , refl = mlookup-helper cn-exts mn n anc-n≢obj anc-n+1≡obj
+
+  mlookup : MethName → Type → Maybe (Σ MethDecl (wf-m (dcls CT)))
+  mlookup mn Object = nothing
+  mlookup mn T@(Class cn) with mRooted T
+  ... | nothing = nothing
+  ... | just (n , anc-n≢obj , anc-n+1≡obj) = mlookup-helper cn mn n anc-n≢obj anc-n+1≡obj
+
+
+  mbody : MethName → Type → Maybe MethBody
+  mbody mn T = map (getMBody ∘ proj₁) (mlookup mn T)
+
+  mtype : MethName → Type → Maybe MethType
+  mtype mn T = map (getMType ∘ proj₁) (mlookup mn T)
+
+
 mlookup-helper : (cn : ClassName) → MethName → (n : ℕ)
   → ancestor (dcls CT) (Class cn) n ≢ Object
   → ancestor (dcls CT) (Class cn) (suc n) ≡ Object
-  → Maybe (Σ MethDecl (λ md → wf-m (dcls CT) md))
+  → Maybe (Σ ClassDecl (λ cd → (Σ MethDecl (λ md → (dcls CT [ ClassDecl.name ]∋ cd) × (mths cd [ MethDecl.name ]∋ md)))))
 mlookup-helper cn mn n anc-n≢obj anc-n+1≡obj
   with declOf+{name = name} cn (dcls CT) in decl-cn-eq
-... | inj₁ ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl)
+... | inj₁ (cd@(class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl)
   with declOf{name = MethDecl.name} mn mths₁
-... | just (md , md∈ , refl) = just (md , (is-wf-md{CT} md∈ wf-mths₁))
-    where
-      wf-mths₁ : wf-m* (dcls CT) mths₁
-      wf-mths₁ = proj₂ (proj₂ (is-wf-cd{CT} cd∈))
+... | just (md , md∈ , refl) = just (cd , md , cd∈ , md∈)
 mlookup-helper cn mn zero anc-n≢obj anc-n+1≡obj | inj₁ ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl) | nothing = nothing
 mlookup-helper cn mn (suc n) anc-n≢obj anc-n+1≡obj | inj₁ ((class .cn extends exts₁ field* flds₁ method* mths₁) , cd∈ , refl) | nothing
   rewrite decl-cn-eq
   with ancestor1 {exts₁} n anc-n≢obj
 ... | cn-exts , refl = mlookup-helper cn-exts mn n anc-n≢obj anc-n+1≡obj
 
-mlookup : MethName → Type → Maybe (Σ MethDecl (wf-m (dcls CT)))
+mlookup : MethName → Type → Maybe (Σ ClassDecl (λ cd → (Σ MethDecl (λ md → (dcls CT [ ClassDecl.name ]∋ cd) × (mths cd [ MethDecl.name ]∋ md)))))
 mlookup mn Object = nothing
 mlookup mn T@(Class cn) with mRooted T
 ... | nothing = nothing
 ... | just (n , anc-n≢obj , anc-n+1≡obj) = mlookup-helper cn mn n anc-n≢obj anc-n+1≡obj
 
+dcls⇒wfm :
+  (arg : Σ ClassDecl (λ cd → (Σ MethDecl (λ md → (dcls CT [ ClassDecl.name ]∋ cd) × (mths cd [ MethDecl.name ]∋ md)))))
+  → (wf-m (dcls CT)) (proj₁ (proj₂ arg))
+dcls⇒wfm (cd , md , cd∈ , md∈) = is-wf-md {CT} md∈ (proj₂ (proj₂ (is-wf-cd{CT} cd∈)))
 
 mbody : MethName → Type → Maybe MethBody
-mbody mn T = map (getMBody ∘ proj₁) (mlookup mn T)
+mbody mn T = map (getMBody ∘ proj₁ ∘ proj₂) (mlookup mn T)
 
 mtype : MethName → Type → Maybe MethType
-mtype mn T = map (getMType ∘ proj₁) (mlookup mn T)
+mtype mn T = map (getMType ∘ proj₁ ∘ proj₂) (mlookup mn T)
+
 
