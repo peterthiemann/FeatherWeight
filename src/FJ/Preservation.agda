@@ -9,7 +9,7 @@ open import Data.Nat.Properties using (suc-injective)
 open import Data.List using (List; []; _∷_; lookup; length; map)
 open import Data.List.Relation.Binary.Pointwise using (Pointwise; []; _∷_)
 open import Data.Maybe using (Maybe; nothing; just)
-open import Data.Product
+open import Data.Product using (_,_; proj₁; proj₂; _×_; Σ; Σ-syntax; ∃; ∃-syntax)
 open import Data.String using (String; _≟_)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Unit using (⊤; tt)
@@ -26,6 +26,7 @@ open import FJ.Lookup CT
 open import FJ.Subtyping CT
 open import FJ.Reduction CT
 open import FJ.Typing CT
+open import FJ.TypingProperties CT
 
 -- general utilities
 
@@ -104,12 +105,11 @@ wf-preservation (wft-C , wfe*-es) (R-Field {C} {es} {f}{fenv}{e} fields≡R f∈
   wf-select {f} (names fenv) es _ wfe*-es f∈ 
 wf-preservation ((wft-C , wfe*-es) , wfe*-ds) (R-Invk  {C@ (Class cn)} {es} {m} {ds} {xs} {e₀} mbody≡R)
   with mlookup m C
-... | just (md , wf-arg-types , wf-res-type , wf-mbody)
-  rewrite sym (pair-injective₂ (just-injective mbody≡R))
-  with wft-C
-... | cd , refl , cn∈cd
-  with substitution-preserves-wf {MethDecl.body md}{"this"}{New C es} wf-mbody (wft-C , wfe*-es)
-... | wfe-e₀[this↦new] = list-subst-preserves-wf{MethDecl.body md [ "this" ↦ New C es ]}{xs} ds wfe-e₀[this↦new] wfe*-ds
+wf-preservation ((wft-C , wfe*-es) , wfe*-ds) (R-Invk {C@(Class cn)} {es} {_} {ds} {xs} {.body} refl) | just arg@(cd , (method name ⦂ args ⇒ ty return body) , cd∈ , md∈)
+  with dcls⇒wfm arg
+... | (wf-arg-types , wf-res-type , wf-mbody)
+  with substitution-preserves-wf {body}{"this"}{New C es} wf-mbody (wft-C , wfe*-es)
+... | wfe-e₀[this↦new] = list-subst-preserves-wf{body [ "this" ↦ New C es ]}{xs} ds wfe-e₀[this↦new] wfe*-ds
 wf-preservation (wft-D , wft-C , wfe*-es) (R-Cast C<:D) = wft-C , wfe*-es
 wf-preservation wfe-e (RC-Field {e₀}{e₀′}{f} e⟶e′) = wf-preservation wfe-e e⟶e′
 wf-preservation (wfe-e , wfe*-es) (RC-Invk-Recv e⟶e′) = wf-preservation wfe-e e⟶e′ , wfe*-es
@@ -137,11 +137,63 @@ wf-derivation wft*-Γ wfe-e (T-Field {_} {Class cn} {_} {fenv} {_} ⊢e () f∈f
 wf-derivation wft*-Γ wfe-e (T-Field {_} {Class cn} {_} {.fff} {_} ⊢e refl f∈fenv) | just n | fff , wft-fff = wf-∈ wft-fff f∈fenv
 wf-derivation wft*-Γ wfe-e (T-Invk {e₀}{C₀}{m}{es}{margs}{T}{Ts} ⊢e mtype≡ ⊢*es Ts<:*)
   with mlookup m C₀
-wf-derivation wft*-Γ wfe-e (T-Invk {_} {C₀} {_} {_} {.(MethDecl.args md)} {_} {Ts} ⊢e refl ⊢*es Ts<:*) | just (md , wfm-md) = proj₁ (proj₂ wfm-md)
+wf-derivation wft*-Γ wfe-e (T-Invk ⊢e refl ⊢*es Ts<:*) | just arg
+  with dcls⇒wfm arg
+... | _ , wft-res , _ = wft-res
 wf-derivation wft*-Γ wfe-e (T-New fields≡ ⊢*es Ts<:*) = proj₁ wfe-e
 wf-derivation wft*-Γ wfe-e (T-UCast ⊢e D<:T) = proj₁ wfe-e
 wf-derivation wft*-Γ wfe-e (T-DCast ⊢e T<:D T≢D) = proj₁ wfe-e
 wf-derivation wft*-Γ wfe-e (T-SCast ⊢e ¬T<:D ¬D<:T) = proj₁ wfe-e
+
+------------------------------------------------------------
+-- preliminary
+
+weaken : ∀ {e}{T}{Γ} → [] ⊢ e ⦂ T → Γ ⊢ e ⦂ T
+weaken* : ∀ {es}{Ts}{Γ} → [] ⊢* es ⦂ Ts → Γ ⊢* es ⦂ Ts
+
+weaken (T-Field ⊢e x x₁) = T-Field (weaken ⊢e) x x₁
+weaken (T-Invk ⊢e mtype≡ ⊢es Ts<:) = T-Invk (weaken ⊢e) mtype≡ (weaken* ⊢es) Ts<:
+weaken (T-New fields≡ ⊢es Ts<:) = T-New fields≡ (weaken* ⊢es) Ts<:
+weaken (T-UCast ⊢e x) = T-UCast (weaken ⊢e) x
+weaken (T-DCast ⊢e x x₁) = T-DCast (weaken ⊢e) x x₁
+weaken (T-SCast ⊢e x x₁) = T-SCast (weaken ⊢e) x x₁
+
+weaken* [] = []
+weaken* (⊢e ∷ ⊢*es) = weaken ⊢e ∷ weaken* ⊢*es
+
+--------------------
+
+substitution-preserves-typing* : ∀ {x}{U}{Γ}{es₀}{Ts₀}{e}{U′}
+  → ((x ⦂ U) ∷ Γ) ⊢* es₀ ⦂ Ts₀
+  → [] ⊢ e ⦂ U′
+  → U′ <: U
+  → ∃[ Ts₀′ ]( Ts₀′ <:* Ts₀ × Γ ⊢* es₀ [ x ↦ e ]* ⦂ Ts₀′ )
+
+substitution-preserves-typing : ∀ {x}{U}{Γ}{e₀}{T₀}{e}{U′}
+  → ((x ⦂ U) ∷ Γ) ⊢ e₀ ⦂ T₀
+  → [] ⊢ e ⦂ U′
+  → U′ <: U
+  → ∃[ T₀′ ]( T₀′ <: T₀ × Γ ⊢ e₀ [ x ↦ e ] ⦂ T₀′ )
+substitution-preserves-typing {x} (T-Var{y} y∈) ⊢e U′<:U with x ≟ y
+substitution-preserves-typing {x} (T-Var {_} (here x₁)) ⊢e U′<:U | yes refl = _ , U′<:U , weaken ⊢e
+substitution-preserves-typing {x} (T-Var {_} (there y∈ x≢x)) ⊢e U′<:U | yes refl = ⊥-elim (x≢x refl)
+substitution-preserves-typing {x} (T-Var {_} (here x₁)) ⊢e U′<:U | no x≢y = ⊥-elim (x≢y refl)
+substitution-preserves-typing {x} (T-Var {_} (there y∈ x₁)) ⊢e U′<:U | no x≢y = _ , S-Refl , T-Var y∈
+substitution-preserves-typing (T-Field ⊢e₀ x x₁) ⊢e U′<:U = {!!}
+substitution-preserves-typing (T-Invk ⊢e₀ x x₁ x₂) ⊢e U′<:U = {!!}
+substitution-preserves-typing (T-New fields≡ ⊢es₀ Ts<:*) ⊢e U′<:U
+  with substitution-preserves-typing* ⊢es₀ ⊢e U′<:U
+... | Ts₀′ , Ts₀′<:Ts₀ , ⊢es₀′ = _ , S-Refl , T-New fields≡ ⊢es₀′ (s-trans* Ts₀′<:Ts₀ Ts<:*)
+substitution-preserves-typing (T-UCast ⊢e₀ x) ⊢e U′<:U = {!!}
+substitution-preserves-typing (T-DCast ⊢e₀ x x₁) ⊢e U′<:U = {!!}
+substitution-preserves-typing (T-SCast ⊢e₀ x x₁) ⊢e U′<:U = {!!}
+
+substitution-preserves-typing* [] ⊢e U′<:U = [] , S-Z , []
+substitution-preserves-typing* (⊢e₀ ∷ ⊢es₀) ⊢e U′<:U
+  with substitution-preserves-typing ⊢e₀ ⊢e U′<:U
+     | substitution-preserves-typing* ⊢es₀ ⊢e U′<:U
+...  | T₀′ , T₀′<:T₀ , ⊢e₀′
+     | Ts₀′ , Ts₀′<:Ts₀ , ⊢es₀′ = (T₀′ ∷ Ts₀′) , S-S T₀′<:T₀ Ts₀′<:Ts₀ , ⊢e₀′ ∷ ⊢es₀′
 
 ------------------------------------------------------------
 
@@ -180,8 +232,18 @@ subject-reduction {Γ} CT-ok wf-ctx wfe-e
     extract (bnd ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x≢x) (here x₄) = ⊥-elim (x≢x refl)
     extract ((f′ ⦂ T′) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x₃) (there fe∈ x₄) = extract fff es Ts<:* ⊢*es ft∈ fe∈
 subject-reduction CT-ok wf-ctx wfe-e
-                  (T-Invk  {e₀}{C₀}{m}{ds}{margs}{T}{Tds} (T-New {C} {es} {Tes} {flds} fields≡TN ⊢*es Ts<:*) mtype≡ ⊢*ds Ds<:*)
-                  (R-Invk mbody≡) = T , S-Refl , {!!}
+                  (T-Invk  {e₀}{Class cn}{m}{ds}{margs}{T}{Tds} (T-New {C} {es} {Tes} {flds} fields≡TN ⊢*es Ts<:*) mtype≡ ⊢*ds Ds<:*)
+                  (R-Invk mbody≡)
+  with mlookup m C
+subject-reduction CT-ok wf-ctx wfe-e
+                  (T-Invk {.(New (Class cn) _)} {Class cn} {_} {_} {.args} {T} {Tds} (T-New {.(Class cn)} {_} {Tes} {flds} fields≡TN ⊢*es Ts<:*) refl ⊢*ds Ds<:*)
+                  (R-Invk refl)
+                  | just (cd , (method name ⦂ args ⇒ ty return body) , cd∈ , md∈)
+  with ⊢program⇒⊢class cd∈ CT-ok
+... | T-Class refl ⊢mdecls
+  with ⊢cd⇒⊢method {cd} md∈ ⊢mdecls
+... | T-Method {E₀ = E₀} ⊢e₀ E₀<:C₀ refl _ = E₀ , E₀<:C₀ , {!⊢e₀!}
+                  -- T , S-Refl , {!⊢program⇒⊢class!}
 subject-reduction CT-ok wf-ctx wfe-e
                   (T-UCast (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) C<:D₁)
                   (R-Cast C<:D) = C , C<:D , (T-New fields≡TN ⊢*es Ts<:*)
