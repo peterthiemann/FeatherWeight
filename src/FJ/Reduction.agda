@@ -32,9 +32,25 @@ If e₀ e₁ e₂  [ x ↦ e ] = If (e₀ [ x ↦ e ]) (e₁ [ x ↦ e ]) (e₂ 
 []           [ x ↦ e ]* = []
 (e₀ ∷ es)    [ x ↦ e ]* = e₀ [ x ↦ e ] ∷ es [ x ↦ e ]*
 
+-- simultaneous substitution
+
+_[_]0 : Name → List (Bind VarName Exp) → Exp
+x [ [] ]0 = Var x
+x [ x₁ ∷ xes ]0 with x ≟ Bind.name x₁
+... | yes refl = Bind.value x₁
+... | no  x≢x₁ = x [ xes ]0
+
+_[_]* : List Exp → List (Bind VarName Exp) → List Exp
 _[_] : Exp → List (Bind VarName Exp) → Exp
-e₀ [ [] ]            = e₀
-e₀ [ (x ⦂ e) ∷ xes ] = (e₀ [ x ↦ e ]) [ xes ]
+Var x [ xes ] = x [ xes ]0
+Field e₀ f [ xes ] = Field (e₀ [ xes ]) f
+Meth e₀ m es [ xes ] = Meth (e₀ [ xes ]) m (es [ xes ]*)
+New C es [ xes ] = New C (es [ xes ]*)
+Cast C e₀ [ xes ] = Cast C (e₀ [ xes ])
+If e₀ e₁ e₂ [ xes ] = If (e₀ [ xes ]) (e₁ [ xes ]) (e₂ [ xes ])
+
+[] [ xes ]* = []
+(e ∷ es) [ xes ]* = (e [ xes ]) ∷ (es [ xes ]*)
 
 -- reduction
 
@@ -59,7 +75,7 @@ data _⟶_ : Exp → Exp → Set where
 
   R-Invk : ∀ {C es m ds xs e₀}
     → mbody m C ≡ just (xs , e₀)
-    → Meth (New C es) m ds ⟶ ((e₀ [ "this" ↦ New C es ]) [ xs ⤇ ds ])
+    → Meth (New C es) m ds ⟶ (e₀ [ ("this" ∷ xs) ⤇ (New C es ∷ ds) ])
 
   R-Cast : ∀ {C D es}
     → C <: D
