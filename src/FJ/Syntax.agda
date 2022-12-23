@@ -70,6 +70,13 @@ member-exclusive : ∀ {A : Set}{name : A → String} {xs : List A} {x : A} → 
 member-exclusive (here x) (nothere x∉ x≢x) = x≢x refl
 member-exclusive (there x∈ x) (nothere x∉ x₁) = member-exclusive x∈ x∉
 
+member-extension : ∀ {A : Set}{name : A → String}{ys : List A} {x} (xs : List A)
+  → xs [ name ]∋ x → (xs ++ ys) [ name ]∋ x
+member-extension .(_ ∷ _) (here x) =
+  here tt
+member-extension .(_ ∷ _) (there xs∋x name-x₁≢) =
+  there (member-extension _ xs∋x) name-x₁≢
+
 --   -- ≢-unique : ∀ {A : Set}{x y : A} → (p q : x ≢ y) → p ≡ q
 --   -- ≢-unique p q = {!p refl!}
 

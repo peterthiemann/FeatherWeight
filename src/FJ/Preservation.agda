@@ -6,7 +6,7 @@ open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Nat.Properties using (suc-injective)
-open import Data.List using (List; []; _∷_; lookup; length; map)
+open import Data.List using (List; []; _∷_; _++_; lookup; length; map)
 open import Data.List.Relation.Binary.Pointwise using (Pointwise; []; _∷_)
 open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Product using (_,_; proj₁; proj₂; _×_; Σ; Σ-syntax; ∃; ∃-syntax)
@@ -68,16 +68,39 @@ substitution-preserves-wf* {[]} wfe*-es wfe-e = tt
 substitution-preserves-wf* {e₀ ∷ es} (wfe-e₀ , wfe*-es) wfe-e =
   substitution-preserves-wf {e₀} wfe-e₀ wfe-e , substitution-preserves-wf* {es} wfe*-es wfe-e
 
-list-subst-preserves-wf : ∀ {e₀}{xs} es
+-- simultaneous substitution preserves well-formedness
+
+sim-subst-preserves-wf-var : ∀ x xs es
+  → wf-e*₀ CT es
+  → wf-e₀ CT (Var x [ xs ⤇ es ])
+sim-subst-preserves-wf-var x [] [] wfe*-es = tt
+sim-subst-preserves-wf-var x [] (x₁ ∷ es) wfe*-es = tt
+sim-subst-preserves-wf-var x (x₁ ∷ xs) [] wfe*-es = tt
+sim-subst-preserves-wf-var x (x₁ ∷ xs) (e ∷ es) (wfe-e , wfe*-es)
+  with x ≟ x₁
+... | yes refl = wfe-e
+... | no _     = sim-subst-preserves-wf-var x xs es wfe*-es
+
+sim-subst-preserves-wf* : ∀ {es₀}{xs} es
+  → wf-e*₀ CT es₀
+  → wf-e*₀ CT es
+  → wf-e*₀ CT (es₀ [ xs ⤇ es ]*)
+sim-subst-preserves-wf : ∀ {e₀}{xs} es
   → wf-e₀ CT e₀
   → wf-e*₀ CT es
   → wf-e₀ CT (e₀ [ xs ⤇ es ])
-list-subst-preserves-wf {e₀} {[]} [] wfe-e₀ wfe*-es = wfe-e₀
-list-subst-preserves-wf {e₀} {x ∷ xs} [] wfe-e₀ wfe*-es = wfe-e₀
-list-subst-preserves-wf {e₀} {[]} (e ∷ es) wfe-e₀ wfe*-es = wfe-e₀
-list-subst-preserves-wf {e₀} {x ∷ xs} (e ∷ es) wfe-e₀ (wfe-e , wfe*-es)
-  with substitution-preserves-wf {e₀} {x} {e} wfe-e₀ wfe-e
-... | wfe-e₀[x↦e] = list-subst-preserves-wf {e₀ [ x ↦ e ]} {xs} es wfe-e₀[x↦e] wfe*-es 
+sim-subst-preserves-wf {Var x} {xs} es wfe-e₀ wfe*-es = sim-subst-preserves-wf-var x xs es wfe*-es
+sim-subst-preserves-wf {Field e₀ f} {xs} es wfe-e₀ wfe*-es = sim-subst-preserves-wf {e₀} es wfe-e₀ wfe*-es
+sim-subst-preserves-wf {Meth e₀ m ds} {xs} es (wfe-e₀ , wfe*-ds) wfe*-es =
+  sim-subst-preserves-wf {e₀} es wfe-e₀ wfe*-es , sim-subst-preserves-wf* {ds} es wfe*-ds wfe*-es
+sim-subst-preserves-wf {New C ds} {xs} es (wft-C , wfe*-ds) wfe*-es = wft-C , sim-subst-preserves-wf* {ds} es wfe*-ds wfe*-es
+sim-subst-preserves-wf {Cast C e₀} {xs} es (wft-C , wfe-e₀) wfe*-es = wft-C , sim-subst-preserves-wf {e₀} es wfe-e₀ wfe*-es
+sim-subst-preserves-wf {If e₀ e₁ e₂} {xs} es (wfe-e₀ , wfe-e₁ , wfe-e₂) wfe*-es =
+  sim-subst-preserves-wf {e₀} es wfe-e₀ wfe*-es , sim-subst-preserves-wf {e₁} es wfe-e₁ wfe*-es , sim-subst-preserves-wf {e₂} es wfe-e₂ wfe*-es
+
+sim-subst-preserves-wf* {[]} {xs} es wfe*-es₀ wfe*-es = tt
+sim-subst-preserves-wf* {e₀ ∷ es₀} {xs} es (wfe-e₀ , wfe*-es₀) wfe*-es =
+  sim-subst-preserves-wf {e₀} es wfe-e₀ wfe*-es , sim-subst-preserves-wf* es wfe*-es₀ wfe*-es
 
 wf-select : ∀ {x} xs es e′
   → wf-e*₀ CT es
@@ -108,8 +131,7 @@ wf-preservation ((wft-C , wfe*-es) , wfe*-ds) (R-Invk  {C@ (Class cn)} {es} {m} 
 wf-preservation ((wft-C , wfe*-es) , wfe*-ds) (R-Invk {C@(Class cn)} {es} {_} {ds} {xs} {.body} refl) | just arg@(cd , (method name ⦂ args ⇒ ty return body) , cd∈ , md∈)
   with dcls⇒wfm arg
 ... | (wf-arg-types , wf-res-type , wf-mbody)
-  with substitution-preserves-wf {body}{"this"}{New C es} wf-mbody (wft-C , wfe*-es)
-... | wfe-e₀[this↦new] = list-subst-preserves-wf{body [ "this" ↦ New C es ]}{xs} ds wfe-e₀[this↦new] wfe*-ds
+  = sim-subst-preserves-wf {body} {"this" ∷ xs} (New C es ∷ ds) wf-mbody ((wft-C , wfe*-es) , wfe*-ds)
 wf-preservation (wft-D , wft-C , wfe*-es) (R-Cast C<:D) = wft-C , wfe*-es
 wf-preservation wfe-e (RC-Field {e₀}{e₀′}{f} e⟶e′) = wf-preservation wfe-e e⟶e′
 wf-preservation (wfe-e , wfe*-es) (RC-Invk-Recv e⟶e′) = wf-preservation wfe-e e⟶e′ , wfe*-es
@@ -194,6 +216,46 @@ substitution-preserves-typing* (⊢e₀ ∷ ⊢es₀) ⊢e U′<:U
      | substitution-preserves-typing* ⊢es₀ ⊢e U′<:U
 ...  | T₀′ , T₀′<:T₀ , ⊢e₀′
      | Ts₀′ , Ts₀′<:Ts₀ , ⊢es₀′ = (T₀′ ∷ Ts₀′) , S-S T₀′<:T₀ Ts₀′<:Ts₀ , ⊢e₀′ ∷ ⊢es₀′
+
+-- revised for simultaneous substitution
+
+subst-preserves-var : ∀ {Γ}{x₀}{T₀}{es}{Us′}
+  → (∋x : Γ [ Bind.name ]∋ (x₀ ⦂ T₀))
+  → [] ⊢* es ⦂ Us′
+  → Us′ <:* map Bind.value Γ
+  → ∃[ T₀′ ]( T₀′ <: T₀  ×  [] ⊢ Var x₀ [ map Bind.name Γ ⤇ es ] ⦂ T₀′ )
+subst-preserves-var {Γ}{x₀}{T₀}{e ∷ es}(here x) (⊢e ∷ ⊢*es) (S-S T₀′<:T₀ Us′<*)
+  with x₀ ≟ x₀
+... | yes refl = _ , T₀′<:T₀ , ⊢e
+... | no  x₀≢x₀ = ⊥-elim (x₀≢x₀ refl)
+subst-preserves-var (there ∋x x) [] ()
+subst-preserves-var {b ∷ Γ}{x₀} (there ∋x x₀≢bnb) (⊢e ∷ ⊢*es) (S-S _ Us′<*)
+  with x₀ ≟ Bind.name b
+... | yes x₀≡bnb = ⊥-elim (x₀≢bnb x₀≡bnb)
+... | no _ = subst-preserves-var ∋x ⊢*es Us′<*
+
+postulate
+  proposed-lemma-0 : ∀ {C}{D}{fenv-c}
+    → D <: C
+    → fields C ≡ just fenv-c
+    → ∃[ fenv-delta ] (fields D ≡ just (fenv-c ++ fenv-delta))
+
+subst-preserves : ∀ {Γ}{e₀}{T₀}{es}{Us′}
+  → Γ ⊢ e₀ ⦂ T₀
+  → [] ⊢* es ⦂ Us′
+  → Us′ <:* map Bind.value Γ
+  → ∃[ T₀′ ]( T₀′ <: T₀  ×  [] ⊢ e₀ [ map Bind.name Γ ⤇ es ] ⦂ T₀′ )
+subst-preserves (T-Var ∋x) ⊢*es Us′<* = subst-preserves-var ∋x ⊢*es Us′<*
+subst-preserves {T₀ = T₀} (T-Field ⊢e₀ fields≡ fenv∋f) ⊢*es Us′<*
+  with subst-preserves ⊢e₀ ⊢*es Us′<*
+... | T₀′ , T₀′<:T₀ , ⊢e₀′
+  with proposed-lemma-0 T₀′<:T₀ fields≡
+... | fenv-delta , fields-T₀′≡ = T₀ , S-Refl , T-Field ⊢e₀′ fields-T₀′≡ (member-extension _ fenv∋f)
+subst-preserves (T-Invk ⊢e₀ x x₁ x₂) ⊢*es Us′<* = {!!}
+subst-preserves (T-New x x₁ x₂) ⊢*es Us′<* = {!!}
+subst-preserves (T-UCast ⊢e₀ x) ⊢*es Us′<* = {!!}
+subst-preserves (T-DCast ⊢e₀ x x₁) ⊢*es Us′<* = {!!}
+subst-preserves (T-SCast ⊢e₀ x x₁) ⊢*es Us′<* = {!!}
 
 ------------------------------------------------------------
 

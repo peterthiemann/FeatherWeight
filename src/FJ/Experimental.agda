@@ -6,6 +6,7 @@ open ClassTable
 
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.List using (List; []; _∷_; _++_)
+open import Data.List.Properties using (++-identityʳ)
 open import Data.List.Relation.Unary.All using (All; []; _∷_)
 open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Nat using (ℕ; zero; suc; _≤_)
@@ -17,10 +18,15 @@ open import Relation.Binary.PropositionalEquality
   using (_≡_; _≢_; refl; sym; trans; cong; cong₂; subst; resp₂; inspect; [_])
 open import Relation.Nullary
   using (¬_; Dec; yes; no)
+open Relation.Binary.PropositionalEquality.≡-Reasoning using (begin_; _≡⟨⟩_; step-≡˘; step-≡; _∎)
 
 open import FJ.Lookup CT
 open import FJ.Subtyping CT
 
+fields′ : ∀ {C} → C <: Object → Fields
+fields′ S-Refl = []
+fields′ (S-Extends {C}{cn}{C′}{flds}{mths}{Object} C≡Class-cn decls∋cn C′<:Obj) =
+  fields′ C′<:Obj ++ flds
 
 <:⇒ancestor : ∀ {C} {D} → C <: D → ∃[ i ] ancestor (dcls CT) C i ≡ D
 <:⇒ancestor {Object} S-Refl = 0 , refl
@@ -39,6 +45,44 @@ open import FJ.Subtyping CT
       → ancestor (dcls CT) (Class cn) (suc i) ≡ ancestor (dcls CT) exts i
     lemma dcl≡ rewrite eq = refl
 
+proposed-lemma-0 : ∀ {C}{D}{fenv-d}
+  → C <: D
+  → fields D ≡ just fenv-d
+  → ∃[ fenv-delta ] (fields C ≡ just (fenv-d ++ fenv-delta))
+proposed-lemma-0 {C} {fenv-d = fenv-d} S-Refl fields-d≡ =
+   [] , (begin
+           fields C
+         ≡⟨ fields-d≡ ⟩
+           just fenv-d ≡˘⟨ cong just (++-identityʳ fenv-d) ⟩
+           just (fenv-d ++ [])
+         ∎)
+proposed-lemma-0 (S-Extends {C}{cn}{C′}{flds}{mths}{D} C≡Class-cn decls∋cn C′<:D) fields-d≡
+  with proposed-lemma-0 C′<:D fields-d≡
+... | fenv-delta , fields-C′≡ =
+  (fenv-delta ++ flds) ,
+  (begin (fields C ≡⟨ {!!} ⟩ {!!}))
+
+
+fields-ancestor :  ∀ {C}{D}
+  → ∀ fenv-D i
+  → fields D ≡ just fenv-D
+  → ancestor (dcls CT) C i ≡ D
+  → ∃[ fenv-C ]( fields C ≡ just fenv-C × ∃[ fenv-delta ] (fenv-D ++ fenv-delta ≡ fenv-C))
+fields-ancestor {C}{D} fenv-D zero fields-D≡ anc-C-i≡D rewrite ancestor0 C anc-C-i≡D = fenv-D , fields-D≡ , [] , ++-identityʳ fenv-D
+fields-ancestor {Object} {Object} [] (suc i) refl refl = [] , refl , [] , refl
+fields-ancestor {Class cn} {.(ancestor (dcls CT) (Class cn) (suc i))} fenv-D (suc i) fields-D≡ refl
+  = helper fenv-D fields-D≡ (declOf+ {name = ClassDecl.name} cn (dcls CT)) refl
+  where
+    helper : ∀ fenv-D → fields (ancestor (dcls CT) (Class cn) (suc i)) ≡ just fenv-D
+      → (declc : ∃-syntax (λ cd → (dcls CT [ ClassDecl.name ]∋ cd) × ClassDecl.name cd ≡ cn) ⊎ (dcls CT [ ClassDecl.name ]∌ cn))
+      → declc ≡ declOf+ {name = ClassDecl.name} cn (dcls CT)
+      → ∃[ fenv-C ]( fields (Class cn) ≡ just fenv-C × ∃[ fenv-delta ] (fenv-D ++ fenv-delta ≡ fenv-C))
+    helper fenv-D fields-D≡ (inj₁ ((class name extends exts field* flds method* mths) , cd∈ , refl)) eq rewrite eq = {!!}
+    helper fenv-D fields-D≡ (inj₂ y) eq = {!!}
+
+
+--   with declOf+ {name = ClassDecl.name} cn (dcls CT)
+--... | decl-cn = {!!}
 
 {-
   with declOf{name = ClassDecl.name} cn (dcls CT)

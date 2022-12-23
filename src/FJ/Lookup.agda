@@ -53,6 +53,8 @@ height T@(Class _) with mRooted T
 ... | nothing = nothing
 ... | just (n , rooted) = just n
 
+-- fields of the super class should come first, so that a proof of f ∈ fields C is reusable for f ∈ fields D, if D <: C
+
 getFields : ℕ → Type → Σ Fields (λ ff → wf-t*₀ CT ff)
 getFields n Object = [] , []
 getFields zero (Class cn) with declOf{name = name} cn (dcls CT)
@@ -62,7 +64,7 @@ getFields (suc n) (Class cn) with declOf{name = name} cn (dcls CT)
 ... | nothing = [] , []
 ... | just (cd , cd∈ , cn≡)
   with getFields n (exts cd)
-... | ff , wft-ff = ff ++ flds cd , wft-ff ++ᴬ proj₁ (proj₂ (is-wf-cd{CT} cd∈))
+... | ff , wft-ff = flds cd ++ ff , proj₁ (proj₂ (is-wf-cd{CT} cd∈)) ++ᴬ wft-ff
 
 -- getFields : ℕ → Type → Fields
 -- getFields n Object = []
