@@ -64,7 +64,7 @@ getFields (suc n) (Class cn) with declOf{name = name} cn (dcls CT)
 ... | nothing = [] , []
 ... | just (cd , cd∈ , cn≡)
   with getFields n (exts cd)
-... | ff , wft-ff = flds cd ++ ff , proj₁ (proj₂ (is-wf-cd{CT} cd∈)) ++ᴬ wft-ff
+... | ff , wft-ff = ff ++ flds cd , wft-ff ++ᴬ proj₁ (proj₂ (is-wf-cd{CT} cd∈))
 
 -- getFields : ℕ → Type → Fields
 -- getFields n Object = []
