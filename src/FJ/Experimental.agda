@@ -14,6 +14,7 @@ open import Data.Nat.Properties using (≤-refl)
 open import Data.String using (String; _≟_)
 open import Data.Product
 open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Data.Unit using (⊤; tt)
 open import Relation.Binary.PropositionalEquality
   using (_≡_; _≢_; refl; sym; trans; cong; cong₂; subst; resp₂; inspect; [_])
 open import Relation.Nullary
@@ -45,6 +46,22 @@ fields′ (S-Extends {C}{cn}{C′}{flds}{mths}{Object} C≡Class-cn decls∋cn C
       → ancestor (dcls CT) (Class cn) (suc i) ≡ ancestor (dcls CT) exts i
     lemma dcl≡ rewrite eq = refl
 
+simpler-lemma-0 :  ∀ {C}{D}{fenv-d}
+  → Rooted (dcls CT) C
+  → C <: D
+  → fields D ≡ just fenv-d
+  → ∃[ fenv-c ] (fields C ≡ just fenv-c)
+simpler-lemma-0 {C} {fenv-d = fenv-d} rooted-c S-Refl fields-d≡ = fenv-d , fields-d≡
+simpler-lemma-0 {Class x} {fenv-d = fenv-d} (zero , snd) (S-Extends {.(Class x)} {cn} {C′} {flds} {mths} {D} C≡class-cn decls∋cn C′<:D) fields-d≡ = {!!}
+simpler-lemma-0 {Class x} {fenv-d = fenv-d} (suc n , cl≢obj , anc≡obj) (S-Extends {.(Class x)} {cn} {Object} {flds} {mths} {D} C≡class-cn decls∋cn C′<:D) fields-d≡
+  with simpler-lemma-0 tt C′<:D fields-d≡
+... | [] , refl = flds , {!refl!}
+simpler-lemma-0 {Class x} {fenv-d = fenv-d} (suc n , cl≢obj , anc≡obj) (S-Extends {.(Class x)} {cn} {Class x₁} {flds} {mths} {D} C≡class-cn decls∋cn C′<:D) fields-d≡ = {!!}
+{-
+  with simpler-lemma-0 {!!} C′<:D fields-d≡
+... | fenv-c′ , fields-c′≡ = {!!}
+-}
+
 proposed-lemma-0 : ∀ {C}{D}{fenv-d}
   → C <: D
   → fields D ≡ just fenv-d
@@ -57,10 +74,14 @@ proposed-lemma-0 {C} {fenv-d = fenv-d} S-Refl fields-d≡ =
            just (fenv-d ++ [])
          ∎)
 proposed-lemma-0 (S-Extends {C}{cn}{C′}{flds}{mths}{D} C≡Class-cn decls∋cn C′<:D) fields-d≡
+  -- class C{cn} extends C' fld methd
   with proposed-lemma-0 C′<:D fields-d≡
-... | fenv-delta , fields-C′≡ =
+... | fenv-delta , fields-C′≡
+  with fields C
+... | nothing = {!!}
+... | just flds-C =
   (fenv-delta ++ flds) ,
-  (begin (fields C ≡⟨ {!!} ⟩ {!!}))
+  {!!}
 
 
 fields-ancestor :  ∀ {C}{D}
@@ -112,7 +133,8 @@ height-mon : ∀ {C}{D}
 height-mon S-Refl n height-D = n , height-D , ≤-refl
 height-mon {Class cn} (S-Extends refl decls∋ C<:D) n height-D
   with height-mon C<:D n height-D
-... | m , height-C'≡ , n≤m = {!declOf+ {name = ClassDecl.name} cn (dcls CT)!}
+... | m , height-C'≡ , n≤m
+  = {!declOf+ {name = ClassDecl.name} cn (dcls CT)!}
 
 
 {-
@@ -158,3 +180,7 @@ fields-mon {Class cn} {Class dn} (S-Extends {flds = flds}{mths = mths} refl cd�
   --   fields-mon-1 : fields (Class dn) ≡ just fff-D → fields (Class cn) ≡ just (flds ++ fff-D)
   --   fields-mon-1 
 -}
+
+
+
+
