@@ -201,6 +201,16 @@ Class x₁ =T? Class x₂
 
 -- well-formed types
 
+module wft-experimental where
+
+  data WF-Type (cc : ClassContext) : {Type} → Set where
+    Object : WF-Type cc {Object}
+    Class  : ∀ {cd} → (cn : ClassName) → name cd ≡ cn → (cc [ name ]∋ cd) → WF-Type cc {Class cn}
+
+  data WF-Exp (cc : ClassContext) : {Exp} → Set where
+    Var    : (x : VarName) → WF-Exp cc {Var x}
+    Field  : ∀ {e} → WF-Exp cc {e} → (f : FieldName) → WF-Exp cc {Field e f}
+
 wf-t : ClassContext → Type → Set
 wf-t cc Object = ⊤
 wf-t cc (Class cn) = ∃[ cd ] (name cd ≡ cn × (cc [ name ]∋ cd))
