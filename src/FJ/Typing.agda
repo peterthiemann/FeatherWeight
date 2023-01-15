@@ -78,14 +78,14 @@ _⊢*_⦂_ Γ = Pointwise (Γ ⊢_⦂_)
 
 -- method typing
 
-data _OK-IN_ : MethDecl → Type → Set where
+data _OK-IN_◁_ : MethDecl → Type → Type → Set where
 
   T-Method : ∀ {m}{xs}{C₀}{e₀}{E₀}{C}{cn}{D}
     → (("this" ⦂ C) ∷ xs) ⊢ e₀ ⦂ E₀
     → E₀ <: C₀
     → C ≡ Class cn
-    → (∀ {ds D₀} → mtype m D ≡ just (ds , D₀) → (names xs ≡ names ds) × (C₀ ≡ D₀))
-    → (method m ⦂ xs ⇒ C₀ return e₀) OK-IN C
+    → (∀ {ds D₀} → mtype m D ≡ just (ds , D₀) → (values xs ≡ values ds) × (C₀ ≡ D₀))
+    → (method m ⦂ xs ⇒ C₀ return e₀) OK-IN C ◁ D
 
 -- class typing
 
@@ -93,7 +93,7 @@ data _OK : ClassDecl → Set where
 
   T-Class : ∀ {C}{cn}{D}{fdecl}{mdecl}
     → C ≡ Class cn
-    → All (_OK-IN C) mdecl
+    → All (_OK-IN C ◁ D) mdecl
     → (class cn extends D field* fdecl method* mdecl) OK
 
 -- program typing
