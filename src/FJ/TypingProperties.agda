@@ -16,7 +16,7 @@ open import FJ.Typing CT
 
 ⊢cd⇒⊢method : ∀ {cd}{meth : MethDecl}{D}
   → (m∈ : ClassDecl.mths cd [ MethDecl.name ]∋ meth)
-  → All (λ x → _OK-IN_◁_ x (Class (ClassDecl.name cd)) D) (ClassDecl.mths cd) -- All (_OK-IN_◁_ (ClassDecl.name cd) Class) (ClassDecl.mths cd)
+  → All (λ x → _OK-IN_◁_ x (Class (ClassDecl.name cd)) D) (ClassDecl.mths cd)
   → meth OK-IN (Class (ClassDecl.name cd)) ◁ D
 ⊢cd⇒⊢method {cd}{meth}{D} m∈ ⊢mdecls = helper (ClassDecl.mths cd) m∈ ⊢mdecls 
   where
