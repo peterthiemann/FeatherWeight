@@ -14,13 +14,13 @@ open import Relation.Binary.PropositionalEquality
 open import FJ.Lookup CT
 open import FJ.Typing CT
 
-⊢cd⇒⊢method : ∀ {cd}{meth : MethDecl}
+⊢cd⇒⊢method : ∀ {cd}{meth : MethDecl}{D}
   → (m∈ : ClassDecl.mths cd [ MethDecl.name ]∋ meth)
-  → All (_OK-IN Class (ClassDecl.name cd)) (ClassDecl.mths cd)
-  → meth OK-IN (Class (ClassDecl.name cd))
-⊢cd⇒⊢method {cd}{meth} m∈ ⊢mdecls = helper (ClassDecl.mths cd) m∈ ⊢mdecls 
+  → All (λ x → _OK-IN_◁_ x (Class (ClassDecl.name cd)) D) (ClassDecl.mths cd) -- All (_OK-IN_◁_ (ClassDecl.name cd) Class) (ClassDecl.mths cd)
+  → meth OK-IN (Class (ClassDecl.name cd)) ◁ D
+⊢cd⇒⊢method {cd}{meth}{D} m∈ ⊢mdecls = helper (ClassDecl.mths cd) m∈ ⊢mdecls 
   where
-    helper : (meths : Methods) (m∈ : meths [ MethDecl.name ]∋ meth) (mdecls-ok : All (_OK-IN Class (ClassDecl.name cd)) meths) → meth OK-IN Class (ClassDecl.name cd)
+    helper : (meths : Methods) (m∈ : meths [ MethDecl.name ]∋ meth) (mdecls-ok : All (λ x → _OK-IN_◁_ x (Class (ClassDecl.name cd)) D) meths) → meth OK-IN Class (ClassDecl.name cd) ◁ D
     helper [] () mdecls-ok
     helper (x ∷ meths) (here x₁) (px ∷ mdecls-ok) = px
     helper (x ∷ meths) (there m∈ x₁) (px ∷ mdecls-ok) = helper meths m∈ mdecls-ok
