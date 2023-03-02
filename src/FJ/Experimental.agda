@@ -6,9 +6,9 @@ open ClassTable
 
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.List using (List; []; _∷_; _++_)
-open import Data.List.Properties using (++-identityʳ)
+open import Data.List.Properties using (++-identityʳ; ++-assoc)
 open import Data.List.Relation.Unary.All using (All; []; _∷_)
-open import Data.Maybe using (Maybe; nothing; just)
+open import Data.Maybe using (Maybe; nothing; just; Is-just; Is-nothing)
 open import Data.Nat using (ℕ; zero; suc; _≤_)
 open import Data.Nat.Properties using (≤-refl)
 open import Data.String using (String; _≟_)
@@ -24,10 +24,20 @@ open Relation.Binary.PropositionalEquality.≡-Reasoning using (begin_; _≡⟨�
 open import FJ.Lookup CT
 open import FJ.Subtyping CT
 
-fields′ : ∀ {C} → C <: Object → Fields
-fields′ S-Refl = []
-fields′ (S-Extends {C}{cn}{C′}{flds}{mths}{Object} C≡Class-cn decls∋cn C′<:Obj) =
-  fields′ C′<:Obj ++ flds
+fields' : ∀ {C} → C <: Object → Fields
+fields' S-Refl = []
+fields' (S-Extends {C}{cn}{C′}{flds}{mths}{Object} C≡Class-cn decls∋cn C′<:Obj) =
+  fields' C′<:Obj ++ flds
+
+get-separate-fields : ∀ {C} → C <: Object → Fields × Fields
+get-separate-fields {.Object} S-Refl = [] , []
+get-separate-fields {C} (S-Extends {C}{cn}{C′}{flds}{mths}{Object} C≡Class-cn decls∋cn C′<:Obj) = proj₁ (get-separate-fields C′<:Obj) ++ proj₂ (get-separate-fields C′<:Obj) , flds
+
+fields'≡separate-fields : ∀ {C} → (s : C <: Object) → fields' s ≡ (proj₁ (get-separate-fields s) ++ proj₂ (get-separate-fields s))
+fields'≡separate-fields {.Object} S-Refl = refl
+fields'≡separate-fields {C} (S-Extends {C}{cn}{C′}{flds}{mths}{Object} C≡Class-cn decls∋cn C′<:Obj)
+  with get-separate-fields C′<:Obj | fields'≡separate-fields{C′} C′<:Obj
+... | fst , snd | b rewrite b | sym (++-identityʳ (fst ++ snd)) = refl
 
 <:⇒ancestor : ∀ {C} {D} → C <: D → ∃[ i ] ancestor (dcls CT) C i ≡ D
 <:⇒ancestor {Object} S-Refl = 0 , refl
@@ -46,64 +56,64 @@ fields′ (S-Extends {C}{cn}{C′}{flds}{mths}{Object} C≡Class-cn decls∋cn C
       → ancestor (dcls CT) (Class cn) (suc i) ≡ ancestor (dcls CT) exts i
     lemma dcl≡ rewrite eq = refl
 
-simpler-lemma-0 :  ∀ {C}{D}{fenv-d}
-  → Rooted (dcls CT) C
+class-eq-names-eq : ∀ {cn cn'} → Class cn ≡ Class cn' → cn ≡ cn'
+class-eq-names-eq {cn} {.cn} refl = refl
+
+-- Uniqueness of []∈
+in-unique : ∀ {A : Set} {B : A → String} {Γ : List A} {a : A} → (ins ins' : Γ [ B ]∋ a) → ins ≡ ins'
+in-unique {A} {B} {.(a ∷ _)} {a} (here x) (here x₁) = refl
+in-unique {A} {B} {.(a ∷ _)} {a} (here x) (there ins' x₁) = ⊥-elim (x₁ refl)
+in-unique {A} {B} {.(a ∷ _)} {a} (there ins x) (here x₁) = ⊥-elim (x refl)
+in-unique {A} {B} {.(_ ∷ _)} {a} (there ins x) (there ins' x₁) = cong₂ there (in-unique ins ins') {!!}
+
+-- Uniqueness of class declarations
+-- => cant prove uniqueness of a ≢ b => need this as an assumption...
+dcls-eq : ∀ {cd} → (a b : dcls CT [ ClassDecl.name ]∋ cd) → a ≡ b
+dcls-eq {cd} (here x) (here x₁) = refl
+dcls-eq {cd} (here x) (there b x₁) = ⊥-elim (x₁ refl)
+dcls-eq {cd} (there a x) (here x₁) = ⊥-elim (x refl)
+dcls-eq {cd} (there a x) (there b x₁) = cong₂ there {!dcls-eq a b!} {!!}
+
+-- Uniqueness of s s' : (C <: Object) by uniqueness of ancestor 1
+<:-object-unique : ∀ {C} → (s s' : C <: Object) → s ≡ s'
+<:-object-unique S-Refl S-Refl = refl
+<:-object-unique (S-Extends {.(Class cn)}{cn}{D}{flds}{mths}{Object} refl decls∋cn D<:Object) (S-Extends {.(Class cn)}{.cn}{D'}{flds'}{mths'}{Object} refl decls∋cn' D′<:Object)
+  with (cc∋-functional decls∋cn decls∋cn')
+... | eq , eq' , eq'' rewrite eq | eq' | eq'' | (<:-object-unique D<:Object D′<:Object) | (dcls-eq decls∋cn decls∋cn') = refl
+
+-- Relating ancestors and extensions
+ancestor-1-extends : ∀ {C D cn} → C ≡ Class cn → (s : C <: Object) → (ancestor (dcls CT) C (suc 0) ≡ D) → ∃[ flds ](∃[ mths ]( dcls CT [ ClassDecl.name ]∋ (class cn extends D field* flds method* mths) ))
+ancestor-1-extends {C} {D} {cn} refl (S-Extends {C}{.cn}{C′}{flds'}{mths'}{Object} refl decls∋cn C′<:Object) anc≡
+  with declOf+ {name = ClassDecl.name} cn (dcls CT)
+... | inj₂ decl∉ = ⊥-elim (member-exclusive decls∋cn decl∉)
+... | inj₁ ((class .cn extends exts field* flds method* mths) , decl∈₂ , refl) rewrite sym (ancestor0{D}{cc = dcls CT} exts anc≡) = flds , (mths , decl∈₂)
+
+extends-ancestor-1 : ∀ {C D flds mths cn} → C ≡ Class cn → (s : C <: Object) → dcls CT [ ClassDecl.name ]∋ (class cn extends D field* flds method* mths) → (ancestor (dcls CT) C (suc 0) ≡ D)
+extends-ancestor-1 {.(Class cn)} {D} {flds} {mths} {cn} refl (S-Extends {C}{.cn}{C′}{flds'}{mths'}{Object} refl decls∋cn C′<:Object) dcl = {!!}
+
+separate-fields-parent : ∀ {C D} → (s : C <: Object) → (s' : D <: Object) → (ancestor (dcls CT) C (suc 0) ≡ D) → (proj₁ (get-separate-fields s) ≡ fields' s')
+separate-fields-parent {.Object} {.(ancestor (dcls CT) Object 1)} S-Refl S-Refl refl = refl
+separate-fields-parent {C} {D} leq@(S-Extends {C}{cn}{C′}{flds}{mths}{Object} C≡Class-cn decls∋cn C′<:Object) s' anc≡
+  with ancestor-1-extends C≡Class-cn leq anc≡
+... | fst , snd , dcl
+  with cc∋-functional dcl decls∋cn
+... | eq , eq' , eq'' rewrite eq | eq' | eq'' rewrite (<:-object-unique C′<:Object s') = sym (fields'≡separate-fields s')
+
+fields'Object≡[] : (s : Object <: Object) → fields' s ≡ []
+fields'Object≡[] S-Refl = refl
+
+proposed-lemma-0' : ∀ {C}{D}{fenv-d}
   → C <: D
-  → fields D ≡ just fenv-d
-  → ∃[ fenv-c ] (fields C ≡ just fenv-c)
-simpler-lemma-0 {C} {fenv-d = fenv-d} rooted-c S-Refl fields-d≡ = fenv-d , fields-d≡
-simpler-lemma-0 {Class x} {fenv-d = fenv-d} (zero , snd) (S-Extends {.(Class x)} {cn} {C′} {flds} {mths} {D} C≡class-cn decls∋cn C′<:D) fields-d≡ = {!!}
-simpler-lemma-0 {Class x} {fenv-d = fenv-d} (suc n , cl≢obj , anc≡obj) (S-Extends {.(Class x)} {cn} {Object} {flds} {mths} {D} C≡class-cn decls∋cn C′<:D) fields-d≡
-  with simpler-lemma-0 tt C′<:D fields-d≡
-... | [] , refl = flds , {!refl!}
-simpler-lemma-0 {Class x} {fenv-d = fenv-d} (suc n , cl≢obj , anc≡obj) (S-Extends {.(Class x)} {cn} {Class x₁} {flds} {mths} {D} C≡class-cn decls∋cn C′<:D) fields-d≡ = {!!}
-{-
-  with simpler-lemma-0 {!!} C′<:D fields-d≡
-... | fenv-c′ , fields-c′≡ = {!!}
--}
-
-proposed-lemma-0 : ∀ {C}{D}{fenv-d}
-  → C <: D
-  → fields D ≡ just fenv-d
-  → ∃[ fenv-delta ] (fields C ≡ just (fenv-d ++ fenv-delta))
-proposed-lemma-0 {C} {fenv-d = fenv-d} S-Refl fields-d≡ =
-   [] , (begin
-           fields C
-         ≡⟨ fields-d≡ ⟩
-           just fenv-d ≡˘⟨ cong just (++-identityʳ fenv-d) ⟩
-           just (fenv-d ++ [])
-         ∎)
-proposed-lemma-0 (S-Extends {C}{cn}{C′}{flds}{mths}{D} C≡Class-cn decls∋cn C′<:D) fields-d≡
-  -- class C{cn} extends C' fld methd
-  with proposed-lemma-0 C′<:D fields-d≡
-... | fenv-delta , fields-C′≡
-  with fields C
-... | nothing = {!!}
-... | just flds-C =
-  (fenv-delta ++ flds) ,
-  {!!}
-
-
-fields-ancestor :  ∀ {C}{D}
-  → ∀ fenv-D i
-  → fields D ≡ just fenv-D
-  → ancestor (dcls CT) C i ≡ D
-  → ∃[ fenv-C ]( fields C ≡ just fenv-C × ∃[ fenv-delta ] (fenv-D ++ fenv-delta ≡ fenv-C))
-fields-ancestor {C}{D} fenv-D zero fields-D≡ anc-C-i≡D rewrite ancestor0 C anc-C-i≡D = fenv-D , fields-D≡ , [] , ++-identityʳ fenv-D
-fields-ancestor {Object} {Object} [] (suc i) refl refl = [] , refl , [] , refl
-fields-ancestor {Class cn} {.(ancestor (dcls CT) (Class cn) (suc i))} fenv-D (suc i) fields-D≡ refl
-  = helper fenv-D fields-D≡ (declOf+ {name = ClassDecl.name} cn (dcls CT)) refl
-  where
-    helper : ∀ fenv-D → fields (ancestor (dcls CT) (Class cn) (suc i)) ≡ just fenv-D
-      → (declc : ∃-syntax (λ cd → (dcls CT [ ClassDecl.name ]∋ cd) × ClassDecl.name cd ≡ cn) ⊎ (dcls CT [ ClassDecl.name ]∌ cn))
-      → declc ≡ declOf+ {name = ClassDecl.name} cn (dcls CT)
-      → ∃[ fenv-C ]( fields (Class cn) ≡ just fenv-C × ∃[ fenv-delta ] (fenv-D ++ fenv-delta ≡ fenv-C))
-    helper fenv-D fields-D≡ (inj₁ ((class name extends exts field* flds method* mths) , cd∈ , refl)) eq rewrite eq = {!!}
-    helper fenv-D fields-D≡ (inj₂ y) eq = {!!}
-
-
---   with declOf+ {name = ClassDecl.name} cn (dcls CT)
---... | decl-cn = {!!}
+  → (s : C <: Object)
+  → (s' : D <: Object)
+  → fields' s' ≡ fenv-d
+  → ∃[ fenv-delta ] (fields' s ≡ (fenv-d ++ fenv-delta))
+proposed-lemma-0' {C} {fenv-d = fenv-d} S-Refl cobj dobj fields-d≡ rewrite (<:-object-unique cobj dobj) = [] , (trans fields-d≡ (sym (++-identityʳ fenv-d)))
+proposed-lemma-0' {C} {fenv-d = fenv-d} (S-Extends {C}{cn}{C′}{flds}{mths}{D} C≡Class-cn decls∋cn C′<:D) cobj dobj fields-d≡
+  with proposed-lemma-0' C′<:D (S-Trans C′<:D dobj) dobj fields-d≡ | extends-ancestor-1 C≡Class-cn cobj decls∋cn
+... | fenv-delta , fields-C′≡ | anc≡ rewrite C≡Class-cn
+  with separate-fields-parent cobj (S-Trans C′<:D dobj) anc≡
+... | fields-s'≡ rewrite (fields'≡separate-fields cobj) | (trans fields-s'≡ fields-C′≡) = fenv-delta ++ proj₂ (get-separate-fields cobj) , ++-assoc fenv-d fenv-delta (proj₂ (get-separate-fields cobj))
 
 {-
   with declOf{name = ClassDecl.name} cn (dcls CT)
