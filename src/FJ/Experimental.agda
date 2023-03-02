@@ -59,20 +59,10 @@ fields'≡separate-fields {C} (S-Extends {C}{cn}{C′}{flds}{mths}{Object} C≡C
 class-eq-names-eq : ∀ {cn cn'} → Class cn ≡ Class cn' → cn ≡ cn'
 class-eq-names-eq {cn} {.cn} refl = refl
 
--- Uniqueness of []∈
-in-unique : ∀ {A : Set} {B : A → String} {Γ : List A} {a : A} → (ins ins' : Γ [ B ]∋ a) → ins ≡ ins'
-in-unique {A} {B} {.(a ∷ _)} {a} (here x) (here x₁) = refl
-in-unique {A} {B} {.(a ∷ _)} {a} (here x) (there ins' x₁) = ⊥-elim (x₁ refl)
-in-unique {A} {B} {.(a ∷ _)} {a} (there ins x) (here x₁) = ⊥-elim (x refl)
-in-unique {A} {B} {.(_ ∷ _)} {a} (there ins x) (there ins' x₁) = cong₂ there (in-unique ins ins') {!!}
-
 -- Uniqueness of class declarations
 -- => cant prove uniqueness of a ≢ b => need this as an assumption...
 dcls-eq : ∀ {cd} → (a b : dcls CT [ ClassDecl.name ]∋ cd) → a ≡ b
-dcls-eq {cd} (here x) (here x₁) = refl
-dcls-eq {cd} (here x) (there b x₁) = ⊥-elim (x₁ refl)
-dcls-eq {cd} (there a x) (here x₁) = ⊥-elim (x refl)
-dcls-eq {cd} (there a x) (there b x₁) = cong₂ there {!dcls-eq a b!} {!!}
+dcls-eq {cd} a b = c-uniq CT a b
 
 -- Uniqueness of s s' : (C <: Object) by uniqueness of ancestor 1
 <:-object-unique : ∀ {C} → (s s' : C <: Object) → s ≡ s'
@@ -80,6 +70,10 @@ dcls-eq {cd} (there a x) (there b x₁) = cong₂ there {!dcls-eq a b!} {!!}
 <:-object-unique (S-Extends {.(Class cn)}{cn}{D}{flds}{mths}{Object} refl decls∋cn D<:Object) (S-Extends {.(Class cn)}{.cn}{D'}{flds'}{mths'}{Object} refl decls∋cn' D′<:Object)
   with (cc∋-functional decls∋cn decls∋cn')
 ... | eq , eq' , eq'' rewrite eq | eq' | eq'' | (<:-object-unique D<:Object D′<:Object) | (dcls-eq decls∋cn decls∋cn') = refl
+
+ancestor0⇐  : ∀ {T}{cc} → (T₁ : Type) → T₁ ≡ T → ancestor cc T₁ 0 ≡ T
+ancestor0⇐ Object refl = refl
+ancestor0⇐ (Class x) refl = refl
 
 -- Relating ancestors and extensions
 ancestor-1-extends : ∀ {C D cn} → C ≡ Class cn → (s : C <: Object) → (ancestor (dcls CT) C (suc 0) ≡ D) → ∃[ flds ](∃[ mths ]( dcls CT [ ClassDecl.name ]∋ (class cn extends D field* flds method* mths) ))
@@ -89,7 +83,13 @@ ancestor-1-extends {C} {D} {cn} refl (S-Extends {C}{.cn}{C′}{flds'}{mths'}{Obj
 ... | inj₁ ((class .cn extends exts field* flds method* mths) , decl∈₂ , refl) rewrite sym (ancestor0{D}{cc = dcls CT} exts anc≡) = flds , (mths , decl∈₂)
 
 extends-ancestor-1 : ∀ {C D flds mths cn} → C ≡ Class cn → (s : C <: Object) → dcls CT [ ClassDecl.name ]∋ (class cn extends D field* flds method* mths) → (ancestor (dcls CT) C (suc 0) ≡ D)
-extends-ancestor-1 {.(Class cn)} {D} {flds} {mths} {cn} refl (S-Extends {C}{.cn}{C′}{flds'}{mths'}{Object} refl decls∋cn C′<:Object) dcl = {!!}
+extends-ancestor-1 {.(Class cn)} {D} {flds} {mths} {cn} refl (S-Extends {C}{.cn}{C′}{flds'}{mths'}{Object} refl decls∋cn C′<:Object) dcl
+  with declOf+ {name = ClassDecl.name} cn (dcls CT)
+... | inj₂ decl∉ = ⊥-elim (member-exclusive decls∋cn decl∉)
+... | inj₁ ((class .cn extends exts field* flds method* mths) , decl∈₂ , refl)
+   with (cc∋-functional dcl decls∋cn) |  (cc∋-functional decls∋cn decl∈₂)
+...  | eq , eq' , eq'' | eq₁ , eq₁' , eq₁''
+  rewrite eq | eq₁ = ancestor0⇐ exts refl
 
 separate-fields-parent : ∀ {C D} → (s : C <: Object) → (s' : D <: Object) → (ancestor (dcls CT) C (suc 0) ≡ D) → (proj₁ (get-separate-fields s) ≡ fields' s')
 separate-fields-parent {.Object} {.(ancestor (dcls CT) Object 1)} S-Refl S-Refl refl = refl

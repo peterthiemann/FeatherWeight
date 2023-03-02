@@ -341,6 +341,8 @@ record ClassTable : Set where
     sane : All (λ cd → Rooted dcls (Class (name cd))) dcls
          -- field declarations are unique along inheritance chains
     uniq : All (λ cd → All (λ{ (f ⦂ _) → ∀ n → check-uniq dcls f (ancestor dcls (Class (name cd)) (suc n))}) (flds cd)) dcls
+         -- class declarations are unique
+    c-uniq : ∀ {cd name} → (ins₁ ins₂ : dcls [ name ]∋ cd) → ins₁ ≡ ins₂
 open ClassTable
 
 wf-t₀ : ClassTable → Type → Set
