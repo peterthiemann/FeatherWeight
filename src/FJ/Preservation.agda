@@ -201,14 +201,24 @@ substitution-preserves-typing {x} (T-Var {_} (here x₁)) ⊢e U′<:U | yes ref
 substitution-preserves-typing {x} (T-Var {_} (there y∈ x≢x)) ⊢e U′<:U | yes refl = ⊥-elim (x≢x refl)
 substitution-preserves-typing {x} (T-Var {_} (here x₁)) ⊢e U′<:U | no x≢y = ⊥-elim (x≢y refl)
 substitution-preserves-typing {x} (T-Var {_} (there y∈ x₁)) ⊢e U′<:U | no x≢y = _ , S-Refl , T-Var y∈
-substitution-preserves-typing (T-Field ⊢e₀ x x₁) ⊢e U′<:U = {!!}
-substitution-preserves-typing (T-Invk ⊢e₀ x x₁ x₂) ⊢e U′<:U = {!!}
+substitution-preserves-typing (T-Field ⊢e₀ x x₁) ⊢e U′<:U
+  with substitution-preserves-typing ⊢e₀ ⊢e U′<:U
+... | T₀′ , T₀′<:C₀ , ⊢e₀′ = _ , (S-Refl , T-Field ⊢e₀′ {!  !} x₁)
+substitution-preserves-typing (T-Invk ⊢e₀ x x₁ x₂) ⊢e U′<:U
+  with substitution-preserves-typing ⊢e₀ ⊢e U′<:U | substitution-preserves-typing* x₁ ⊢e U′<:U
+... | T₀′ , T₀′<:D , ⊢e₀′ | Ts′ , Ts′<:*Ts , ⊢es′ = _ , (S-Refl , (T-Invk ⊢e₀′ {!  !} ⊢es′ (s-trans* Ts′<:*Ts x₂)))
 substitution-preserves-typing (T-New fields≡ ⊢es₀ Ts<:*) ⊢e U′<:U
   with substitution-preserves-typing* ⊢es₀ ⊢e U′<:U
 ... | Ts₀′ , Ts₀′<:Ts₀ , ⊢es₀′ = _ , S-Refl , T-New fields≡ ⊢es₀′ (s-trans* Ts₀′<:Ts₀ Ts<:*)
-substitution-preserves-typing (T-UCast ⊢e₀ x) ⊢e U′<:U = {!!}
-substitution-preserves-typing (T-DCast ⊢e₀ x x₁) ⊢e U′<:U = {!!}
-substitution-preserves-typing (T-SCast ⊢e₀ x x₁) ⊢e U′<:U = {!!}
+substitution-preserves-typing (T-UCast ⊢e₀ x) ⊢e U′<:U
+  with substitution-preserves-typing ⊢e₀ ⊢e U′<:U
+... | T₀′ , T₀′<:D , ⊢e₀′ = _ , (S-Refl , T-UCast ⊢e₀′ (S-Trans T₀′<:D x))
+substitution-preserves-typing (T-DCast ⊢e₀ x x₁) ⊢e U′<:U
+  with substitution-preserves-typing ⊢e₀ ⊢e U′<:U
+... | T₀′ , T₀′<:D , ⊢e₀′ = _ , S-Refl , T-DCast ⊢e₀′ {!  !} {!   !} -- T₀ <: D × T₀ ≢ D → ∃A T₀ <: A × A <: D  
+substitution-preserves-typing (T-SCast ⊢e₀ x x₁) ⊢e U′<:U
+  with substitution-preserves-typing ⊢e₀ ⊢e U′<:U
+... | T₀′ , T₀′<:D , ⊢e₀′ =  _ , (S-Refl , (T-SCast ⊢e₀′ (λ T₀<:Tₒ′ → x (S-Trans T₀<:Tₒ′ T₀′<:D)) λ T₀′<:T₀ → lemma-cd1 (lemma-cdd3 T₀′<:D T₀′<:T₀) x₁ x))
 
 substitution-preserves-typing* [] ⊢e U′<:U = [] , S-Z , []
 substitution-preserves-typing* (⊢e₀ ∷ ⊢es₀) ⊢e U′<:U
@@ -240,22 +250,44 @@ postulate
     → fields C ≡ just fenv-c
     → ∃[ fenv-delta ] (fields D ≡ just (fenv-c ++ fenv-delta))
 
+subst-preserves* : ∀ {Γ}{es₀}{Ts₀}{es}{Us′}
+  → Γ ⊢* es₀ ⦂ Ts₀
+  → [] ⊢* es ⦂ Us′
+  → Us′ <:* map Bind.value Γ
+  → ∃[ Ts₀′ ]( Ts₀′ <:* Ts₀  ×  [] ⊢* es₀ [ map Bind.name Γ ⤇ es ]* ⦂ Ts₀′ )
+
 subst-preserves : ∀ {Γ}{e₀}{T₀}{es}{Us′}
   → Γ ⊢ e₀ ⦂ T₀
   → [] ⊢* es ⦂ Us′
   → Us′ <:* map Bind.value Γ
   → ∃[ T₀′ ]( T₀′ <: T₀  ×  [] ⊢ e₀ [ map Bind.name Γ ⤇ es ] ⦂ T₀′ )
+
 subst-preserves (T-Var ∋x) ⊢*es Us′<* = subst-preserves-var ∋x ⊢*es Us′<*
 subst-preserves {T₀ = T₀} (T-Field ⊢e₀ fields≡ fenv∋f) ⊢*es Us′<*
   with subst-preserves ⊢e₀ ⊢*es Us′<*
 ... | T₀′ , T₀′<:T₀ , ⊢e₀′
   with proposed-lemma-0 T₀′<:T₀ fields≡
 ... | fenv-delta , fields-T₀′≡ = T₀ , S-Refl , T-Field ⊢e₀′ fields-T₀′≡ (member-extension _ fenv∋f)
-subst-preserves (T-Invk ⊢e₀ x x₁ x₂) ⊢*es Us′<* = {!!}
-subst-preserves (T-New x x₁ x₂) ⊢*es Us′<* = {!!}
-subst-preserves (T-UCast ⊢e₀ x) ⊢*es Us′<* = {!!}
-subst-preserves (T-DCast ⊢e₀ x x₁) ⊢*es Us′<* = {!!}
-subst-preserves (T-SCast ⊢e₀ x x₁) ⊢*es Us′<* = {!!}
+subst-preserves (T-Invk ⊢e₀ x x₁ x₂) ⊢*es Us′<*
+  with subst-preserves ⊢e₀ ⊢*es Us′<* | subst-preserves* x₁ ⊢*es Us′<*
+... | T₀′ , T₀′<:C₀ , ⊢e₀′ | Ts′ , Ts′<:*Ts , ⊢es′ = _ , S-Refl , T-Invk ⊢e₀′ {!  !} ⊢es′ (s-trans* Ts′<:*Ts x₂)
+subst-preserves (T-New x x₁ x₂) ⊢*es Us′<*
+  with subst-preserves* x₁ ⊢*es Us′<*
+... | Ts′ , Ts′<:*Ts , ⊢es′ = _ , S-Refl , (T-New x ⊢es′ (s-trans* Ts′<:*Ts x₂))
+subst-preserves (T-UCast ⊢e₀ x) ⊢*es Us′<*
+  with subst-preserves ⊢e₀ ⊢*es Us′<*
+... | T₀′ , T₀′<:D , ⊢e₀′ = _ , S-Refl , (T-UCast ⊢e₀′ (S-Trans T₀′<:D x))
+subst-preserves (T-DCast ⊢e₀ x x₁) ⊢*es Us′<*
+  with subst-preserves ⊢e₀ ⊢*es Us′<*
+... | T₀′ , T₀′<:D , ⊢e₀′ = _ , S-Refl , (T-DCast ⊢e₀′ {!   !} {!   !})
+subst-preserves (T-SCast ⊢e₀ x x₁) ⊢*es Us′<*
+  with subst-preserves ⊢e₀ ⊢*es Us′<*
+... | T₀′ , T₀′<:D , ⊢e₀′ = _ , S-Refl , T-SCast ⊢e₀′ (λ T₀<:T₀′ → x (S-Trans T₀<:T₀′ T₀′<:D)) λ T₀′<:T₀ → lemma-cd1 (lemma-cdd3 T₀′<:D T₀′<:T₀) x₁ x
+
+subst-preserves* [] ⊢es Us′<:* = [] , S-Z , []
+subst-preserves* (⊢e₀ ∷ ⊢es₀) ⊢es Us′<:*
+  with subst-preserves ⊢e₀ ⊢es Us′<:* | subst-preserves* ⊢es₀ ⊢es Us′<:*
+... | T₀ , T₀′<:T₀ , ⊢e₀′ | Ts₀ , Ts₀′<:Ts₀ , ⊢es₀′ = T₀ ∷ Ts₀ , S-S T₀′<:T₀ Ts₀′<:Ts₀ , ⊢e₀′ ∷ ⊢es₀′
 
 ------------------------------------------------------------
 

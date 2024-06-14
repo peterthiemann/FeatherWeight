@@ -134,6 +134,9 @@ lemma-cd {Class cn} {Class cn₁} ¬C<:D with cn ≟ cn₁
 ... | yes refl = ⊥-elim (¬C<:D S-Refl)
 ... | no  cn≢cn₁ = λ{ refl → ⊥-elim (cn≢cn₁ refl)}
 
+lemma-cd1 : ∀{C D} → (C <: D) ⊎ (D <: C) → ¬(C <: D) → ¬(D <: C) → ⊥
+lemma-cd1 (inj₁ CD) ¬CD ¬DC = ¬CD CD
+lemma-cd1 (inj₂ DC) ¬CD ¬DC = ¬DC DC
 
 lemma-cdd1 : ∀ {C D D′} → ¬ (C <: D) → (D′ <: D) → ¬ (C <: D′)
 lemma-cdd1 ¬C<:D D′<:D C<:D′ = ¬C<:D (S-Trans C<:D′ D′<:D)
@@ -159,4 +162,3 @@ lemma-cdd3 {Class cn} {D} {D′} (S-Extends refl cn∈₁ C<:D) (S-Extends refl 
 
 ¬C<:D⇒C≢D : ∀ {C}{D} → ¬ C <: D → C ≢ D
 ¬C<:D⇒C≢D ¬C<:D refl = ¬C<:D S-Refl
-

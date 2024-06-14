@@ -25,7 +25,7 @@ open import Data.List.Relation.Binary.Pointwise
 
 -- data
 _⊢*_⦂_ : VarContext → List Exp → List Type → Set
-data _⊢_⦂_  Γ : Exp → Type → Set where
+data _⊢_⦂_  (Γ : List (Bind String Type)) : Exp → Type → Set where
 
   T-Var : ∀ {x}{T}
     → Γ [ Bind.name ]∋ (x ⦂ T)
