@@ -2,6 +2,8 @@ open import FJ.Syntax
 
 module FJ.Preservation (CT : ClassTable) where
 
+open ClassTable
+
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Nat using (ℕ; zero; suc)
@@ -123,21 +125,21 @@ wf-preservation : ∀ {e}{e′}
   → wf-e₀ CT e
   → e ⟶ e′
   → wf-e₀ CT e′
-
-wf-preservation (wft-C , wfe*-es) (R-Field {C} {es} {f}{fenv}{e} fields≡R f∈) =
-  wf-select {f} (names fenv) es _ wfe*-es f∈ 
-wf-preservation ((wft-C , wfe*-es) , wfe*-ds) (R-Invk  {C@ (Class cn)} {es} {m} {ds} {xs} {e₀} mbody≡R)
-  with mlookup m C
-wf-preservation ((wft-C , wfe*-es) , wfe*-ds) (R-Invk {C@(Class cn)} {es} {_} {ds} {xs} {.body} refl) | just arg@(cd , (method name ⦂ args ⇒ ty return body) , cd∈ , md∈)
-  with dcls⇒wfm arg
-... | (wf-arg-types , wf-res-type , wf-mbody)
-  = sim-subst-preserves-wf {body} {"this" ∷ xs} (New C es ∷ ds) wf-mbody ((wft-C , wfe*-es) , wfe*-ds)
-wf-preservation (wft-D , wft-C , wfe*-es) (R-Cast C<:D) = wft-C , wfe*-es
-wf-preservation wfe-e (RC-Field {e₀}{e₀′}{f} e⟶e′) = wf-preservation wfe-e e⟶e′
+wf-preservation (wf-t , wf-e*) (R-Field fieldsC≡fenv ∋f) = wf-select _ _ _ wf-e* ∋f
+wf-preservation ((wf-t , wf-e*-es) , wf-e*-ds) (R-Invk {xs = xs} {e₀} mbodymC≡justxse₀) = sim-subst-preserves-wf {e₀} {"this" ∷ xs} (New _ _ ∷ _) {!  !} ((wf-t , wf-e*-es) , wf-e*-ds)
+wf-preservation (wf-t-D , wf-t-C , wf-e*) (R-Cast C<:D) = wf-t-C , wf-e*
+wf-preservation wf-e₀ (RC-Field e₀⟶e₀′) = wf-preservation wf-e₀ e₀⟶e₀′
 wf-preservation (wfe-e , wfe*-es) (RC-Invk-Recv e⟶e′) = wf-preservation wfe-e e⟶e′ , wfe*-es
 wf-preservation (wfe-e , wfe*-es) (RC-Invk-Arg es⟶es′) = wfe-e , wf-preservation* wfe*-es es⟶es′
 wf-preservation (wft-C , wfe*-es) (RC-New-Arg es⟶es′) = wft-C , wf-preservation* wfe*-es es⟶es′
-wf-preservation (wft-C , wfe-e) (RC-Cast e⟶e′) = wft-C , wf-preservation wfe-e e⟶e′
+wf-preservation (wf-t , wf-e) (RC-Cast e₀⟶e₀′) = wf-t , (wf-preservation wf-e e₀⟶e₀′)
+
+-- wf-preservation ((wft-C , wfe*-es) , wfe*-ds) (R-Invk  {C@ (Class cn)} {es} {m} {ds} {xs} {e₀} mbody≡R)
+-- --   with mlookup m C
+-- -- wf-preservation ((wft-C , wfe*-es) , wfe*-ds) (R-Invk {C@(Class cn)} {es} {_} {ds} {xs} {.body} refl) | just arg@(cd , (method name ⦂ args ⇒ ty return body) , cd∈ , md∈)
+-- --   with dcls⇒wfm arg
+-- -- ... | (wf-arg-types , wf-res-type , wf-mbody)
+-- --  = sim-subst-preserves-wf {body} {"this" ∷ xs} (New C es ∷ ds) wf-mbody ((wft-C , wfe*-es) , wfe*-ds)
 
 wf-preservation* (wfe-e , wfe*-es) (RC-here e⟶e′) = wf-preservation wfe-e e⟶e′ , wfe*-es
 wf-preservation* (wfe-e , wfe*-es) (RC-there es⟶es′) = wfe-e , wf-preservation* wfe*-es es⟶es′
@@ -151,17 +153,19 @@ wf-derivation : ∀ {Γ}{e}{T}
   → wf-t₀ CT T
 wf-derivation wft*-Γ wfe-e (T-Var x∈Γ) = wf-∈ wft*-Γ x∈Γ
 wf-derivation wft*-Γ wfe-e (T-Field {e₀} {Object} {f} {.[]} {T} ⊢e refl ())
-wf-derivation wft*-Γ wfe-e (T-Field {e₀} {Class cn} {f} {fenv} {T} ⊢e fields≡ f∈fenv)
-  with height (Class cn)
-wf-derivation wft*-Γ wfe-e (T-Field {_} {Class cn} {_} {fenv} {_} ⊢e () f∈fenv) | nothing
-... | just n
-  with getFields (suc n) (Class cn)
-wf-derivation wft*-Γ wfe-e (T-Field {_} {Class cn} {_} {.fff} {_} ⊢e refl f∈fenv) | just n | fff , wft-fff = wf-∈ wft-fff f∈fenv
-wf-derivation wft*-Γ wfe-e (T-Invk {e₀}{C₀}{m}{es}{margs}{T}{Ts} ⊢e mtype≡ ⊢*es Ts<:*)
-  with mlookup m C₀
-wf-derivation wft*-Γ wfe-e (T-Invk ⊢e refl ⊢*es Ts<:*) | just arg
-  with dcls⇒wfm arg
-... | _ , wft-res , _ = wft-res
+wf-derivation wft*-Γ wfe-e (T-Field {e₀} {Class cn} {f} {fenv} {T} ⊢e fields≡ f∈fenv) = wf-∈ {!  !} f∈fenv
+wf-derivation wft*-Γ wfe-e (T-Invk {e₀}{C₀}{m}{es}{margs}{T}{Ts} ⊢e mtype≡ ⊢*es Ts<:*) = {!   !}
+-- wf-derivation wft*-Γ wfe-e (T-Field {e₀} {Class cn} {f} {fenv} {T} ⊢e fields≡ f∈fenv)
+--   with height (Class cn)
+-- wf-derivation wft*-Γ wfe-e (T-Field {_} {Class cn} {_} {fenv} {_} ⊢e () f∈fenv) | nothing
+-- ... | just n
+--   with getFields (suc n) (Class cn)
+-- wf-derivation wft*-Γ wfe-e (T-Field {_} {Class cn} {_} {.fff} {_} ⊢e refl f∈fenv) | just n | fff , wft-fff = wf-∈ wft-fff f∈fenv
+-- wf-derivation wft*-Γ wfe-e (T-Invk {e₀}{C₀}{m}{es}{margs}{T}{Ts} ⊢e mtype≡ ⊢*es Ts<:*)
+--   with mlookup m C₀
+-- wf-derivation wft*-Γ wfe-e (T-Invk ⊢e refl ⊢*es Ts<:*) | just arg
+--   with dcls⇒wfm arg
+-- ... | _ , wft-res , _ = wft-res
 wf-derivation wft*-Γ wfe-e (T-New fields≡ ⊢*es Ts<:*) = proj₁ wfe-e
 wf-derivation wft*-Γ wfe-e (T-UCast ⊢e D<:T) = proj₁ wfe-e
 wf-derivation wft*-Γ wfe-e (T-DCast ⊢e T<:D T≢D) = proj₁ wfe-e
@@ -183,7 +187,74 @@ weaken (T-SCast ⊢e x x₁) = T-SCast (weaken ⊢e) x x₁
 weaken* [] = []
 weaken* (⊢e ∷ ⊢*es) = weaken ⊢e ∷ weaken* ⊢*es
 
---------------------
+---- May be usefull ----
+-- somewhere : ∀(C : Type) → fields C ≡ nothing ⊎ ∃[ proof ] fields C ≡ just (fields' {dcls CT} {C} proof)
+-- somewhere Object = inj₂ (rooted-obj , refl)
+-- somewhere (Class cn) with declOf{name = ClassDecl.name} cn (dcls CT)
+-- ... | nothing = inj₁ refl
+-- ... | just (cd , ∋cd , refl) = inj₂ (sane CT ∋cd , refl)
+
+-- somewhere+ : ∀{C}{fenv-c} → fields C ≡ just fenv-c → ∃[ proof ] fields C ≡ just (fields' {dcls CT} {C} proof)
+-- somewhere+ {Object} _ = rooted-obj , refl
+-- somewhere+ {Class cn} x
+--   with declOf{name = ClassDecl.name} cn (dcls CT)
+-- ... | just (cd , ∋cd , refl) = (sane CT ∋cd) , refl
+------------------------
+
+fenv-idᵣ : ∀{fenv : Fields} → fenv ≡ fenv ++ []
+fenv-idᵣ {[]} = refl
+fenv-idᵣ {x ∷ fenv} = cong (x ∷_)  (fenv-idᵣ {fenv})
+
+fields→fields' : ∀{C}{fenv-c} → fields C ≡ just fenv-c → ∃[ proof ] fields' {dcls CT} {C} proof ≡ fenv-c
+fields→fields' {Object} {[]} _ = rooted-obj , refl
+fields→fields' {Class cn} _
+  with declOf{name = ClassDecl.name} cn (dcls CT)
+fields→fields' refl | just (_ , ∋cd , refl) = (sane CT ∋cd) , refl
+
+proof≟proof : ∀{C} → (proof₁ : Rooted (dcls CT) C) → (proof₂ : Rooted (dcls CT) C) → proof₁ ≡ proof₂
+proof≟proof rooted-obj rooted-obj = refl
+proof≟proof (rooted-cls ∋cd refl proof₁) (rooted-cls ∋cd' refl proof₂)
+  with c-uniq CT ∋cd ∋cd'
+... | refl , refl
+  with proof≟proof proof₁ proof₂
+... | refl = refl
+
+∋cd-∌cd : ∀{cc}{cd} → cc [ ClassDecl.name ]∋ cd → cc [ ClassDecl.name ]∌ (ClassDecl.name cd) → ⊥
+∋cd-∌cd (here tt) (nothere x₁ x₂) = x₂ refl
+∋cd-∌cd (there x x₃) (nothere x₁ x₂) = ∋cd-∌cd x x₁
+
+fieldsC≡fieldsD++flds : ∀{D₁}{D}{fenv-d₁}{cn}{flds}{mths} → D ≡ Class cn → fields D₁ ≡ just fenv-d₁ → dcls CT [ ClassDecl.name ]∋ (class cn extends D₁ field* flds method* mths) → fields D ≡ just (fenv-d₁ ++ flds)
+fieldsC≡fieldsD++flds {D₁} {D} {fenv-d₁} {cn} {flds} {mths} refl fieldsD₁≡justfenv-d₁ ∋cd
+   with fields→fields' {D₁} fieldsD₁≡justfenv-d₁
+... | proof₁ , refl
+  with fields D₁ in eq-fields
+... | just fenv-d₁
+  with declOf+ {name = ClassDecl.name} cn (dcls CT) in eq
+... | inj₂ y = ⊥-elim (∋cd-∌cd ∋cd y)
+... | inj₁ (cd , ∋cd' , refl)
+  with c-uniq CT ∋cd ∋cd'
+... | refl , refl
+  with fieldsD₁≡justfenv-d₁
+... | refl
+  with sane CT ∋cd
+... | rooted-cls ∋cd'' refl proof₂
+  with c-uniq CT ∋cd ∋cd''
+... | refl , refl
+  with proof≟proof proof₁ proof₂
+... | refl = cong just (cong (λ x → x ++ flds) refl)
+
+fields-assoc : ∀(xs ys zs : Fields) → ((xs ++ ys) ++ zs) ≡ (xs ++ (ys ++ zs))
+fields-assoc [] ys zs = refl
+fields-assoc (x ∷ xs) ys zs = cong (x ∷_) (fields-assoc xs ys zs)
+
+proposed-lemma-0 : ∀ {C}{D}{fenv-c}
+  → D <: C
+  → fields C ≡ just fenv-c
+  → ∃[ fenv-delta ] (fields D ≡ just (fenv-c ++ fenv-delta))
+proposed-lemma-0 {C = C} S-Refl fieldsC≡justfenv-c = _ , subst (λ x → fields C ≡ just x) fenv-idᵣ fieldsC≡justfenv-c
+proposed-lemma-0 {D = D} {fenv-c} (S-Extends {flds = flds} D≡Classcn ∋cd D₁<:C) fieldsC≡justfenv-c
+  with proposed-lemma-0 D₁<:C fieldsC≡justfenv-c
+... | fenv-d₁ , fieldsD₁≡justfenv-c++fenv-d₁ = _ , subst (λ y → fields D ≡ just y) (fields-assoc fenv-c fenv-d₁ flds) (fieldsC≡fieldsD++flds D≡Classcn fieldsD₁≡justfenv-c++fenv-d₁ ∋cd)
 
 substitution-preserves-typing* : ∀ {x}{U}{Γ}{es₀}{Ts₀}{e}{U′}
   → ((x ⦂ U) ∷ Γ) ⊢* es₀ ⦂ Ts₀
@@ -203,10 +274,12 @@ substitution-preserves-typing {x} (T-Var {_} (here x₁)) ⊢e U′<:U | no x≢
 substitution-preserves-typing {x} (T-Var {_} (there y∈ x₁)) ⊢e U′<:U | no x≢y = _ , S-Refl , T-Var y∈
 substitution-preserves-typing (T-Field ⊢e₀ x x₁) ⊢e U′<:U
   with substitution-preserves-typing ⊢e₀ ⊢e U′<:U
-... | T₀′ , T₀′<:C₀ , ⊢e₀′ = _ , (S-Refl , T-Field ⊢e₀′ {!  !} x₁)
+... | T₀′ , T₀′<:C₀ , ⊢e₀′
+  with  proposed-lemma-0 T₀′<:C₀ x
+... | fenv-delta , fields-T₀′≡ = _ , (S-Refl , T-Field ⊢e₀′ fields-T₀′≡ ((member-extension _ x₁)))
 substitution-preserves-typing (T-Invk ⊢e₀ x x₁ x₂) ⊢e U′<:U
   with substitution-preserves-typing ⊢e₀ ⊢e U′<:U | substitution-preserves-typing* x₁ ⊢e U′<:U
-... | T₀′ , T₀′<:D , ⊢e₀′ | Ts′ , Ts′<:*Ts , ⊢es′ = _ , (S-Refl , (T-Invk ⊢e₀′ {!  !} ⊢es′ (s-trans* Ts′<:*Ts x₂)))
+... | T₀′ , T₀′<:C₀ , ⊢e₀′ | Ts′ , Ts′<:*Ts , ⊢es′ = _ , (S-Refl , (T-Invk ⊢e₀′ {! x !} ⊢es′ (s-trans* Ts′<:*Ts x₂)))
 substitution-preserves-typing (T-New fields≡ ⊢es₀ Ts<:*) ⊢e U′<:U
   with substitution-preserves-typing* ⊢es₀ ⊢e U′<:U
 ... | Ts₀′ , Ts₀′<:Ts₀ , ⊢es₀′ = _ , S-Refl , T-New fields≡ ⊢es₀′ (s-trans* Ts₀′<:Ts₀ Ts<:*)
@@ -215,7 +288,15 @@ substitution-preserves-typing (T-UCast ⊢e₀ x) ⊢e U′<:U
 ... | T₀′ , T₀′<:D , ⊢e₀′ = _ , (S-Refl , T-UCast ⊢e₀′ (S-Trans T₀′<:D x))
 substitution-preserves-typing (T-DCast ⊢e₀ x x₁) ⊢e U′<:U
   with substitution-preserves-typing ⊢e₀ ⊢e U′<:U
-... | T₀′ , T₀′<:D , ⊢e₀′ = _ , S-Refl , T-DCast ⊢e₀′ {!  !} {!   !} -- T₀ <: D × T₀ ≢ D → ∃A T₀ <: A × A <: D  
+-- DCast: (T₀)(e₀ ⦂ D)
+-- e₀[x ↦ e] → e₀ ⦂ T₀′
+-- DCast: (T₀)(e₀ ⦂ T₀′)
+-- ?: T₀ <: T₀′ ⊎ T₀′ <: T₀ ⊎ T₀ ≮ T₀′ × T₀′ ≮ T₀
+substitution-preserves-typing {T₀ = T₀} (T-DCast ⊢e₀ T₀<:D T₀≢D) ⊢e U′<:U | T₀′ , T₀′<:D , ⊢e₀′
+  with lemma-somewhere T₀ T₀′ {!  !} {!   !} -- wt-t₀ CT (T₀ | T₀′)
+... | inj₁ (T₀<:T₀′ , T₀≢T₀′) = _ , S-Refl , (T-DCast ⊢e₀′ T₀<:T₀′ λ T₀≡T₀′ → T₀≢T₀′ T₀≡T₀′)
+... | inj₂ (inj₁ T₀′<:T₀) = _ , S-Refl , (T-UCast ⊢e₀′ T₀′<:T₀)
+... | inj₂ (inj₂ (T₀≮:T₀′ , T₀′≮:T₀)) = _ , S-Refl , (T-SCast ⊢e₀′ (λ T₀<:T₀′ → T₀≮:T₀′ T₀<:T₀′) (λ T₀′<:T₀ → T₀′≮:T₀ T₀′<:T₀))
 substitution-preserves-typing (T-SCast ⊢e₀ x x₁) ⊢e U′<:U
   with substitution-preserves-typing ⊢e₀ ⊢e U′<:U
 ... | T₀′ , T₀′<:D , ⊢e₀′ =  _ , (S-Refl , (T-SCast ⊢e₀′ (λ T₀<:Tₒ′ → x (S-Trans T₀<:Tₒ′ T₀′<:D)) λ T₀′<:T₀ → lemma-cd1 (lemma-cdd3 T₀′<:D T₀′<:T₀) x₁ x))
@@ -244,12 +325,6 @@ subst-preserves-var {b ∷ Γ}{x₀} (there ∋x x₀≢bnb) (⊢e ∷ ⊢*es) (
 ... | yes x₀≡bnb = ⊥-elim (x₀≢bnb x₀≡bnb)
 ... | no _ = subst-preserves-var ∋x ⊢*es Us′<*
 
-postulate
-  proposed-lemma-0 : ∀ {C}{D}{fenv-c}
-    → D <: C
-    → fields C ≡ just fenv-c
-    → ∃[ fenv-delta ] (fields D ≡ just (fenv-c ++ fenv-delta))
-
 subst-preserves* : ∀ {Γ}{es₀}{Ts₀}{es}{Us′}
   → Γ ⊢* es₀ ⦂ Ts₀
   → [] ⊢* es ⦂ Us′
@@ -270,7 +345,7 @@ subst-preserves {T₀ = T₀} (T-Field ⊢e₀ fields≡ fenv∋f) ⊢*es Us′<
 ... | fenv-delta , fields-T₀′≡ = T₀ , S-Refl , T-Field ⊢e₀′ fields-T₀′≡ (member-extension _ fenv∋f)
 subst-preserves (T-Invk ⊢e₀ x x₁ x₂) ⊢*es Us′<*
   with subst-preserves ⊢e₀ ⊢*es Us′<* | subst-preserves* x₁ ⊢*es Us′<*
-... | T₀′ , T₀′<:C₀ , ⊢e₀′ | Ts′ , Ts′<:*Ts , ⊢es′ = _ , S-Refl , T-Invk ⊢e₀′ {!  !} ⊢es′ (s-trans* Ts′<:*Ts x₂)
+... | T₀′ , T₀′<:C₀ , ⊢e₀′ | Ts′ , Ts′<:*Ts , ⊢es′ = _ , S-Refl , T-Invk ⊢e₀′ {! x !} ⊢es′ (s-trans* Ts′<:*Ts x₂)
 subst-preserves (T-New x x₁ x₂) ⊢*es Us′<*
   with subst-preserves* x₁ ⊢*es Us′<*
 ... | Ts′ , Ts′<:*Ts , ⊢es′ = _ , S-Refl , (T-New x ⊢es′ (s-trans* Ts′<:*Ts x₂))
@@ -279,7 +354,11 @@ subst-preserves (T-UCast ⊢e₀ x) ⊢*es Us′<*
 ... | T₀′ , T₀′<:D , ⊢e₀′ = _ , S-Refl , (T-UCast ⊢e₀′ (S-Trans T₀′<:D x))
 subst-preserves (T-DCast ⊢e₀ x x₁) ⊢*es Us′<*
   with subst-preserves ⊢e₀ ⊢*es Us′<*
-... | T₀′ , T₀′<:D , ⊢e₀′ = _ , S-Refl , (T-DCast ⊢e₀′ {!   !} {!   !})
+subst-preserves {T₀ = T₀} (T-DCast ⊢e₀ x x₁) ⊢*es Us′<* | T₀′ , T₀′<:D , ⊢e₀′
+  with lemma-somewhere T₀ T₀′ {!   !} {!   !} -- wt-t₀ CT (T₀ | T₀′)
+... | inj₁ (T₀<:T₀′ , T₀≢T₀′) = _ , S-Refl , (T-DCast ⊢e₀′ T₀<:T₀′ λ T₀≡T₀′ → T₀≢T₀′ T₀≡T₀′)
+... | inj₂ (inj₁ T₀′<:T₀) = _ , S-Refl , (T-UCast ⊢e₀′ T₀′<:T₀)
+... | inj₂ (inj₂ (T₀≮:T₀′ , T₀′≮:T₀)) = _ , S-Refl , (T-SCast ⊢e₀′ (λ T₀<:T₀′ → T₀≮:T₀′ T₀<:T₀′) (λ T₀′<:T₀ → T₀′≮:T₀ T₀′<:T₀))
 subst-preserves (T-SCast ⊢e₀ x x₁) ⊢*es Us′<*
   with subst-preserves ⊢e₀ ⊢*es Us′<*
 ... | T₀′ , T₀′<:D , ⊢e₀′ = _ , S-Refl , T-SCast ⊢e₀′ (λ T₀<:T₀′ → x (S-Trans T₀<:T₀′ T₀′<:D)) λ T₀′<:T₀ → lemma-cd1 (lemma-cdd3 T₀′<:D T₀′<:T₀) x₁ x
@@ -307,70 +386,79 @@ subject-reduction : ∀ {Γ}{e e′}{T}
   → e ⟶ e′
   → ∃[ T′ ] (T′ <: T × Γ ⊢ e′ ⦂ T′)
 
-subject-reduction CT-ok wf-ctx wfe-e
-                  (T-Field {e₀}{C₀}{f}{fenv}{T} (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) fields≡TF f∈)
-                  (R-Field fields≡R f∈fields)
-  with flookup C₀
-subject-reduction {Γ} CT-ok wf-ctx wfe-e
-                  (T-Field {.(New C₀ _)} {C₀} {f} {fff} {T} (T-New {C₀} {es} {Ts} {.fff} refl ⊢*es Ts<:*) refl f∈)
-                  (R-Field refl f∈fields) | just (fff , wft*-fff) = extract fff es Ts<:* ⊢*es f∈ f∈fields 
-  where
-    extract : ∀ {e′}{Ts} (fff : Fields) (es : List Exp) (Ts<:* : Ts <:* values fff) (⊢*es : Pointwise (_⊢_⦂_ Γ) es Ts)
-      → fff [ Bind.name ]∋ (f ⦂ T) → (names fff ⤇ es) [ Bind.name ]∋ (f ⦂ e′) 
-      → ∃[ T′ ] (T′ <: T × Γ ⊢ e′ ⦂ T′)
-    extract [] [] S-Z [] () fe∈
-    extract [] (x ∷ es) S-Z () ft∈ fe∈
-    extract (x ∷ fff) [] (S-S x₁ Ts<:*) () ft∈ fe∈
-    extract (.(f ⦂ T) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (here x₂) (here x₃) = _ , C<:T , ⊢e
-    extract (.(f ⦂ T) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (here x₂) (there fe∈ f≢f) = ⊥-elim (f≢f refl)
-    extract (bnd ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x≢x) (here x₄) = ⊥-elim (x≢x refl)
-    extract ((f′ ⦂ T′) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x₃) (there fe∈ x₄) = extract fff es Ts<:* ⊢*es ft∈ fe∈
-subject-reduction CT-ok wf-ctx wfe-e
-                  (T-Invk  {e₀}{Class cn}{m}{ds}{margs}{T}{Tds} (T-New {C} {es} {Tes} {flds} fields≡TN ⊢*es Ts<:*) mtype≡ ⊢*ds Ds<:*)
-                  (R-Invk mbody≡)
-  with mlookup m C
-subject-reduction CT-ok wf-ctx wfe-e
-                  (T-Invk {.(New (Class cn) _)} {Class cn} {_} {_} {.args} {T} {Tds} (T-New {.(Class cn)} {_} {Tes} {flds} fields≡TN ⊢*es Ts<:*) refl ⊢*ds Ds<:*)
-                  (R-Invk refl)
-                  | just (cd , (method name ⦂ args ⇒ ty return body) , cd∈ , md∈)
-  with ⊢program⇒⊢class cd∈ CT-ok
-... | T-Class refl ⊢mdecls
-  with ⊢cd⇒⊢method {cd} md∈ ⊢mdecls
-... | T-Method {E₀ = E₀} ⊢e₀ E₀<:C₀ refl _ = E₀ , E₀<:C₀ , {!⊢e₀!}
+-- subject-reduction CT-ok wf-ctx wfe-e
+--                   (T-Field {e₀}{C₀}{f}{fenv}{T} (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) fields≡TF f∈)
+--                   (R-Field fields≡R f∈fields)
+--   with flookup C₀
+-- subject-reduction {Γ} CT-ok wf-ctx wfe-e
+--                   (T-Field {.(New C₀ _)} {C₀} {f} {fff} {T} (T-New {C₀} {es} {Ts} {.fff} refl ⊢*es Ts<:*) refl f∈)
+--                   (R-Field refl f∈fields) | just (fff , wft*-fff) = extract fff es Ts<:* ⊢*es f∈ f∈fields 
+--   where
+--     extract : ∀ {e′}{Ts} (fff : Fields) (es : List Exp) (Ts<:* : Ts <:* values fff) (⊢*es : Pointwise (_⊢_⦂_ Γ) es Ts)
+--       → fff [ Bind.name ]∋ (f ⦂ T) → (names fff ⤇ es) [ Bind.name ]∋ (f ⦂ e′) 
+--       → ∃[ T′ ] (T′ <: T × Γ ⊢ e′ ⦂ T′)
+--     extract [] [] S-Z [] () fe∈
+--     extract [] (x ∷ es) S-Z () ft∈ fe∈
+--     extract (x ∷ fff) [] (S-S x₁ Ts<:*) () ft∈ fe∈
+--     extract (.(f ⦂ T) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (here x₂) (here x₃) = _ , C<:T , ⊢e
+--     extract (.(f ⦂ T) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (here x₂) (there fe∈ f≢f) = ⊥-elim (f≢f refl)
+--     extract (bnd ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x≢x) (here x₄) = ⊥-elim (x≢x refl)
+--     extract ((f′ ⦂ T′) ∷ fff) (e ∷ es) (S-S C<:T Ts<:*) (⊢e ∷ ⊢*es) (there ft∈ x₃) (there fe∈ x₄) = extract fff es Ts<:* ⊢*es ft∈ fe∈
+subject-reduction CT-OK wf-t*₀ wf-e₀ (T-Field (T-New fieldsC₀≡justflds ⊢*es Ts<:*) fieldsC₀≡justfenv ∋f) (R-Field fieldsC≡justfenv₁ fenv₁∋f) = {!   !}
+
+-- subject-reduction CT-ok wf-ctx wfe-e
+--                   (T-Invk  {e₀}{Class cn}{m}{ds}{margs}{T}{Tds} (T-New {C} {es} {Tes} {flds} fields≡TN ⊢*es Ts<:*) mtype≡ ⊢*ds Ds<:*)
+--                   (R-Invk mbody≡)
+--   with mlookup m C
+-- subject-reduction CT-ok wf-ctx wfe-e
+--                   (T-Invk {.(New (Class cn) _)} {Class cn} {_} {_} {.args} {T} {Tds} (T-New {.(Class cn)} {_} {Tes} {flds} fields≡TN ⊢*es Ts<:*) refl ⊢*ds Ds<:*)
+--                   (R-Invk refl)
+--                   | just (cd , (method name ⦂ args ⇒ ty return body) , cd∈ , md∈)
+--   with ⊢program⇒⊢class cd∈ CT-ok
+-- ... | T-Class refl ⊢mdecls
+--   with ⊢cd⇒⊢method {cd} md∈ ⊢mdecls
+-- ... | T-Method {E₀ = E₀} ⊢e₀ E₀<:C₀ refl _ = E₀ , E₀<:C₀ , {! ⊢e₀ !}
                   -- T , S-Refl , {!⊢program⇒⊢class!}
+subject-reduction CT-OK wf-t*₀ wf-e₀ (T-Invk ⊢e x₁ x₂ x₃) (R-Invk x) = {!   !}
+
 subject-reduction CT-ok wf-ctx wfe-e
                   (T-UCast (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) C<:D₁)
                   (R-Cast C<:D) = C , C<:D , (T-New fields≡TN ⊢*es Ts<:*)
+
 subject-reduction CT-ok wf-ctx wfe-e
                   (T-DCast (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) D<:C D≢C)
                   (R-Cast C<:D) = ⊥-elim (D≢C (<:-antisymm D<:C C<:D))
+
 subject-reduction CT-ok wf-ctx wfe-e
                   (T-SCast (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*) ¬D<:C ¬C<:D)
                   (R-Cast C<:D) = ⊥-elim (¬C<:D C<:D)
-subject-reduction CT-ok wf-ctx wfe-e
-                  (T-Field {e₀}{C₀}{f}{fenv}{T} ⊢e fields≡TF f∈)
-                  (RC-Field e⟶e′)
-  with subject-reduction CT-ok wf-ctx wfe-e ⊢e e⟶e′
-... | T′ , T′<:C₀ , ⊢e′
-  = T , S-Refl , T-Field{{!!}}{_}{T′}{f}{{!!}}{T} ⊢e′ {!!} {!!}
-subject-reduction CT-ok wf-ctx wfe-e
-                  ⊢e
-                  (RC-Invk-Recv e⟶e′) = {!!}
+
+-- subject-reduction CT-ok wf-ctx wfe-e
+--                   (T-Field {e₀}{C₀}{f}{fenv}{T} ⊢e fields≡TF f∈)
+--                   (RC-Field e⟶e′)
+--   with subject-reduction CT-ok wf-ctx wfe-e ⊢e e⟶e′
+-- ... | T′ , T′<:C₀ , ⊢e′
+--   = T , S-Refl , T-Field{{!  !}}{_}{T′}{f}{{!  !}}{T} ⊢e′ {!  !} f∈
+subject-reduction CT-OK wf-t*₀ wf-e₀ (T-Field ⊢e x x₁) (RC-Field e⟶e′) = {!   !}
+
+subject-reduction CT-OK wf-t*₀ wf-e₀ (T-Invk ⊢e x x₁ x₂) (RC-Invk-Recv e⟶e′) = {!   !}
+
 subject-reduction CT-ok wf-ctx wfe-e
                   (T-Invk ⊢e mtype≡ ⊢*es Ts<:*)
                   (RC-Invk-Arg es⟶es′)
   with subject-reduction* CT-ok wf-ctx (proj₂ wfe-e) ⊢*es es⟶es′
 ... | Ts′ , Ts′<:Ts , ⊢*es′ = _ , S-Refl , T-Invk ⊢e mtype≡ ⊢*es′ (s-trans* Ts′<:Ts Ts<:*)
+
 subject-reduction CT-ok wf-ctx wfe-e
                   (T-New {C} {es} {Ts} {flds} fields≡TN ⊢*es Ts<:*)
                   (RC-New-Arg es⟶es′)
   with subject-reduction* CT-ok wf-ctx (proj₂ wfe-e) ⊢*es es⟶es′
 ... | Ts′ , Ts′<:Ts , ⊢*es′ = _ , S-Refl , T-New fields≡TN ⊢*es′ (s-trans* Ts′<:Ts Ts<:*)
-subject-reduction CT-ok wf-ctx wfe-e
-                  (T-UCast ⊢e D<:T)
-                  (RC-Cast e⟶e′)
-  with subject-reduction CT-ok wf-ctx (proj₂ wfe-e) ⊢e e⟶e′
-... | T′ , T′<:D , ⊢e′ = _ , S-Refl , T-UCast ⊢e′ (S-Trans T′<:D D<:T)
+
+subject-reduction CT-OK wf-t*₀ wf-e₀ (T-UCast ⊢e D<:T) (RC-Cast e⟶e′)
+  with subject-reduction CT-OK wf-t*₀ (proj₂ wf-e₀) ⊢e e⟶e′
+... | T′ , T′<:D , ⊢e₀′ = _ , (S-Refl , (T-UCast ⊢e₀′ (S-Trans T′<:D D<:T)))
+
 subject-reduction CT-ok wf-ctx wfe-e
                   (T-DCast {C}{D}{e₀} ⊢e C<:D C≢D)
                   (RC-Cast e⟶e′)
@@ -381,11 +469,11 @@ subject-reduction CT-ok wf-ctx wfe-e
   with wf-derivation wf-ctx wfe-e′ ⊢e′
 ... | wft-T′
   with T′ [ wft-T′ ]<:? C
-... | yes T′<:C = C , S-Refl , T-UCast ⊢e′ T′<:C
-... | no ¬T′<:C
+... | yes T′<:C = C , (S-Refl , (T-UCast ⊢e′ T′<:C))
+... | no T′≮:C
   with C [ proj₁ wfe-e ]<:? T′
-... | no ¬C<:T′ = C , S-Refl , T-SCast ⊢e′ ¬C<:T′ ¬T′<:C
-... | yes C<:T′ = C , S-Refl , T-DCast ⊢e′ C<:T′ (¬C<:D⇒C≢D ¬T′<:C ∘ sym)
+... | yes C<:T′ = C , (S-Refl , (T-DCast ⊢e′ C<:T′ (¬C<:D⇒C≢D T′≮:C ∘ sym)))
+... | no C≮:T′ = C , (S-Refl , (T-SCast ⊢e′ C≮:T′ T′≮:C))
 
 subject-reduction {T = T} CT-ok wf-ctx wfe-e
                   (T-SCast ⊢e ¬T<:D ¬D<:T)
@@ -408,3 +496,4 @@ subject-reduction* CT-ok wf-ctx wfe*-es (_∷_ {ys = Ts} ⊢e  ⊢*es) (RC-here 
 subject-reduction* CT-ok wf-ctx wfe*-es (_∷_ {y = T} ⊢e ⊢*es) (RC-there es⟶es′)
   with subject-reduction* CT-ok wf-ctx (proj₂ wfe*-es) ⊢*es es⟶es′
 ... | Ts′ , Ts′<:Ts , ⊢*es′ = T ∷ Ts′ , S-S S-Refl Ts′<:Ts , ⊢e ∷ ⊢*es′
+                   

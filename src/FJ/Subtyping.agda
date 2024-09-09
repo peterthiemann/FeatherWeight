@@ -67,72 +67,61 @@ s-trans* (S-S T<:T′ Ts<:*Ts′) (S-S T′<:T″ Ts′<:*Ts″) = S-S (S-Trans 
 ¬object<:class : ∀ {cn} → ¬ Object <: Class cn
 ¬object<:class (S-Extends () dcls∋ o<:cn)
 
-class<:object : ∀ {cn} → Rooted (dcls CT) (Class cn) → Class cn <: Object
-class<:object {cn} (n , anc-n≢object , anc-n+1≡object) = proof-of-cn<:object n anc-n≢object anc-n+1≡object
-  where
-    proof-of-cn<:object : ∀ {cn} → ∀ n
-      → ancestor (dcls CT) (Class cn) n ≢ Object → ancestor (dcls CT) (Class cn) (suc n) ≡ Object
-      → Class cn <: Object
-    proof-of-cn<:object {cn} zero anc-n≢object anc-n+1≡object with declOf+{name = ClassDecl.name} cn (dcls CT)
-    ... | inj₁ ((class name extends exts field* flds method* mths) , cd∈ , refl)
-      rewrite sym (ancestor0 exts anc-n+1≡object) = S-Extends refl cd∈ S-Refl
-    proof-of-cn<:object {cn} (suc n) anc-n≢object anc-n+1≡object with declOf+{name = ClassDecl.name} cn (dcls CT)
-    ... | inj₁ ((class name extends exts field* flds method* mths) , cd∈ , refl)
-      with ancestor1 {exts} n anc-n≢object
-    ... | cn-ext , refl
-      with proof-of-cn<:object n anc-n≢object anc-n+1≡object
-    ... | cn-ext<:object = S-Extends refl cd∈ cn-ext<:object
+class<:object : ∀{cn} → Rooted (dcls CT) (Class cn) → Class cn <: Object
+class<:object (rooted-cls {class _ extends exts field* _ method* _} ∋cd namecd≡cn proof)
+  with exts
+... | Object = S-Extends (sym (cong Class namecd≡cn)) ∋cd S-Refl
+... | Class cn = S-Extends (sym (cong Class namecd≡cn)) ∋cd (class<:object proof)
 
 -- class-exts-injective : {cd₁ cd₂ : ClassDecl} → cd₁ ≡ cd₂ → ClassDecl.exts cd₁ ≡ ClassDecl.exts cd₂
 -- class-exts-injective refl = refl
 
-class<:class : ∀ {cn cn₂} → Rooted (dcls CT) (Class cn) → Dec (Class cn <: Class cn₂)
-class<:class {cn}{cn₂} (n , anc-n≢object , anc-n+1≡object) = proof-of-cn<:cn {cn} n anc-n≢object anc-n+1≡object
-  where
-    proof-of-cn<:cn : ∀ {cn} n
-      → ancestor (dcls CT) (Class cn) n ≢ Object → ancestor (dcls CT) (Class cn) (suc n) ≡ Object
-      → Dec (Class cn <: Class cn₂)
-    proof-of-cn<:cn {cn} n anc-n≢object anc-n+1≡object
-      with cn ≟ cn₂
-    ... | yes refl = yes S-Refl
-    proof-of-cn<:cn {cn} zero anc-n≢object anc-n+1≡object | no cn≢
-      with declOf+{name = ClassDecl.name} cn (dcls CT)
-    ... | inj₁ ((class .cn extends exts field* flds method* mths) , cd∈ , refl)
-      with ancestor0 exts anc-n+1≡object
-    ... | refl = no ¬cn<:cn₂
-      where
-        ¬cn<:cn₂ : ¬ (Class cn <: Class cn₂)
-        ¬cn<:cn₂ S-Refl = cn≢ refl
-        ¬cn<:cn₂ (S-Extends refl cd∈₂ obj<:cn₂) with cc∋-functional cd∈ cd∈₂
-        ... | refl , refl , refl = ¬object<:class obj<:cn₂
-    proof-of-cn<:cn {cn} (suc n) anc-n≢object anc-n+1≡object | no cn≢
-      with declOf+{name = ClassDecl.name} cn (dcls CT)
-    ... | inj₁ ((class .cn extends exts field* flds method* mths) , cd∈ , refl)
-      with ancestor1 {exts} n anc-n≢object
-    ... | cn₁ , refl
-      with proof-of-cn<:cn {cn₁} n anc-n≢object anc-n+1≡object
-    ... | yes cn₁<:cn₂ = yes (S-Extends refl cd∈ cn₁<:cn₂)
-    ... | no ¬cn₁<:cn₂ = no ¬cn<:cn₂
-      where
-        ¬cn<:cn₂ : ¬ (Class cn <: Class cn₂)
-        ¬cn<:cn₂ S-Refl = cn≢ refl
-        ¬cn<:cn₂ (S-Extends refl cd∈₂ cn₁<:cn₂)
-          with cc∋-functional cd∈ cd∈₂
-        ... | refl , refl , refl = ¬cn₁<:cn₂ cn₁<:cn₂
+¬C<:D→C≢D : ∀ {C}{D} → ¬ (D <: C) → C ≢ D
+¬C<:D→C≢D {Object} {Object} ¬C<:D = ⊥-elim (¬C<:D S-Refl)
+¬C<:D→C≢D {Object} {Class x} ¬C<:D = λ()
+¬C<:D→C≢D {Class x} {Object} ¬C<:D = λ()
+¬C<:D→C≢D {Class cn} {Class cn₁} ¬C<:D with cn ≟ cn₁
+... | yes refl = ⊥-elim (¬C<:D S-Refl)
+... | no  cn≢cn₁ = λ{ refl → ⊥-elim (cn≢cn₁ refl)}
+
+eq-or-sub : ∀{C₁ C₂ C₁ₛ cn₁ fs ms} → Class cn₁ ≡ C₁ → C₁ <: C₂ → ( dcls CT [ ClassDecl.name ]∋ (class cn₁ extends C₁ₛ field* fs method* ms)) → C₁ ≡ C₂ ⊎ C₁ₛ <: C₂
+eq-or-sub refl S-Refl ∋cd = inj₁ refl
+eq-or-sub refl (S-Extends refl ∋cd' D<:C₂) ∋cd
+  with c-uniq CT ∋cd ∋cd'
+... | refl , refl = inj₂ D<:C₂
+
+eq-or-sub→⊥ : ∀{C₁ C₁ₛ C₂} → ¬ C₁ ≡ C₂ → ¬ C₁ₛ <: C₂ → C₁ ≡ C₂ ⊎ C₁ₛ <: C₂ → ⊥
+eq-or-sub→⊥ ¬eq ¬sub (inj₁ eq) = ¬eq eq
+eq-or-sub→⊥ ¬eq ¬sub (inj₂ sub) = ¬sub sub
+
+¬cn→¬C : ∀{cn₁ cn₂} → ¬ cn₁ ≡ cn₂ → ¬ (Class cn₁) ≡ (Class cn₂)
+¬cn→¬C ¬eq refl = ¬eq refl
+
+-- TODO : get rid of this confusion two names
+_<:[_]?_ : (t₁ : Type) → Rooted (dcls CT) t₁ → (t₂ : Type) → Dec (t₁ <: t₂)
+Object <:[ proof ]? Object = yes S-Refl
+Object <:[ proof ]? Class x = no ¬object<:class
+Class cn₁ <:[ proof ]? Object = yes (class<:object proof)
+Class cn₁ <:[ rooted-cls {cd@(class _ extends cn₁ₛ field* _ method* _)} ∋cd refl proof ]? Class cn₂
+  with cn₁ ≟ cn₂
+... | yes refl = yes S-Refl
+... | no ¬cn₁≡cn₂
+  with cn₁ₛ <:[ proof ]? Class cn₂
+... | yes cn₁ₛ<:cn₂ = yes (S-Extends refl ∋cd cn₁ₛ<:cn₂)
+... | no ¬cn₁ₛ<:cn₂ = no λ cn₁<:cn₂ → eq-or-sub→⊥ (¬cn→¬C ¬cn₁≡cn₂) ¬cn₁ₛ<:cn₂ (eq-or-sub refl cn₁<:cn₂ ∋cd)
 
 _[_]<:?_ : (S : Type) (ws : wf-t₀ CT S) (T : Type) → Dec (S <: T)
 Object [ _ ]<:? Object = yes S-Refl
 Object [ _ ]<:? Class x = no ¬object<:class
-Class cn [ cd , refl , cd∈ ]<:? Object = yes (class<:object (getRooted cd∈))
-Class cn [ cd , refl , cd∈ ]<:? Class cn₂ = class<:class (getRooted cd∈)
+Class cn [ cd , refl , ∋cd ]<:? Object = yes (class<:object (sane CT ∋cd))
+Class cn [ cd , refl , ∋cd ]<:? Class cn₂ = (Class (ClassDecl.name cd)) <:[ sane CT ∋cd ]? Class cn₂
 
-lemma-cd : ∀ {C}{D} → ¬ (D <: C) → C ≢ D
-lemma-cd {Object} {Object} ¬C<:D = ⊥-elim (¬C<:D S-Refl)
-lemma-cd {Object} {Class x} ¬C<:D = λ()
-lemma-cd {Class x} {Object} ¬C<:D = λ()
-lemma-cd {Class cn} {Class cn₁} ¬C<:D with cn ≟ cn₁
-... | yes refl = ⊥-elim (¬C<:D S-Refl)
-... | no  cn≢cn₁ = λ{ refl → ⊥-elim (cn≢cn₁ refl)}
+lemma-somewhere : ∀(C D : Type) → wf-t₀ CT C → wf-t₀ CT D → C <: D × C ≢ D ⊎ D <: C ⊎ ¬ (C <: D) × ¬ (D <: C)
+lemma-somewhere c d ws₁ ws₂ with c [ ws₁ ]<:? d | d [ ws₂ ]<:? c
+... | yes c<:d | yes d<:c = inj₂ (inj₁ d<:c)
+... | yes c<:d | no  d≮:c = inj₁ (c<:d , λ{ refl → d≮:c S-Refl})
+... | no  c≮:d | yes d<:c = inj₂ (inj₁ d<:c)
+... | no  c≮:d | no  d≮:c = inj₂ (inj₂ (c≮:d , d≮:c))
 
 lemma-cd1 : ∀{C D} → (C <: D) ⊎ (D <: C) → ¬(C <: D) → ¬(D <: C) → ⊥
 lemma-cd1 (inj₁ CD) ¬CD ¬DC = ¬CD CD
@@ -145,12 +134,11 @@ wf-<: : ∀ {S} {T} → S <: T → wf-t₀ CT T → wf-t₀ CT S
 wf-<: S-Refl wft-T = wft-T
 wf-<: (S-Extends refl cn∈cd S<:T) wft-T = _ , (refl , cn∈cd)
 
-
 lemma-cdd2 : ∀ {C D D′} → wf-t₀ CT D → ¬ (D <: C) → (D′ <: D) → Dec (D′ <: C)
 lemma-cdd2 wft-D ¬D<:C S-Refl = no ¬D<:C
 lemma-cdd2 {Object} {Object} wft-D ¬D<:C (S-Extends refl x₁ D′<:D) = ⊥-elim (¬D<:C S-Refl)
-lemma-cdd2 {Object} {Class dn} (cd-d , refl , cd-d∈) ¬D<:C (S-Extends refl x₁ D′<:D) = ⊥-elim (¬D<:C (class<:object (getRooted cd-d∈)))
-lemma-cdd2 {Class cn} wft-D ¬D<:C (S-Extends {cn = dn′} refl dn′∈ D′<:D) = class<:class (getRooted dn′∈)
+lemma-cdd2 {Object} {Class dn} (cd-d , refl , cd-d∈) ¬D<:C (S-Extends refl x₁ D′<:D) = ⊥-elim (¬D<:C (class<:object (sane CT cd-d∈)))
+lemma-cdd2 {Class cn} wft-D ¬D<:C (S-Extends {cn = dn′} refl dn′∈ D′<:D) = (Class dn′) <:[ sane CT dn′∈ ]? (Class cn)
 
 lemma-cdd3 : ∀ {C D D′} → C <: D → C <: D′ → D <: D′ ⊎ D′ <: D
 lemma-cdd3 {Object} {.Object} {.Object} S-Refl S-Refl = inj₁ S-Refl
@@ -162,3 +150,6 @@ lemma-cdd3 {Class cn} {D} {D′} (S-Extends refl cn∈₁ C<:D) (S-Extends refl 
 
 ¬C<:D⇒C≢D : ∀ {C}{D} → ¬ C <: D → C ≢ D
 ¬C<:D⇒C≢D ¬C<:D refl = ¬C<:D S-Refl
+
+nothing≡just→⊥ : ∀{x : Fields} → nothing ≡ just x → ⊥
+nothing≡just→⊥ ()
